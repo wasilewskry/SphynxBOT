@@ -9,7 +9,7 @@ class Sphynx(commands.Bot):
                          intents=discord.Intents.all())
 
         self.initial_extensions = [
-            'cogs.admin',
+            'cogs.owner',
         ]
 
     async def setup_hook(self):
