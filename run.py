@@ -10,6 +10,7 @@ class Sphynx(commands.Bot):
 
         self.initial_extensions = [
             'cogs.owner',
+            'cogs.unit',
         ]
 
     async def setup_hook(self):
