@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+
 from config import token
 
 
@@ -11,6 +12,7 @@ class Sphynx(commands.Bot):
         self.initial_extensions = [
             'cogs.owner',
             'cogs.unit',
+            'cogs.reminder',
         ]
 
     async def setup_hook(self):
