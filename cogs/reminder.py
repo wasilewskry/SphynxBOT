@@ -9,7 +9,7 @@ from discord.ext import commands, tasks
 from config import database_path
 from utils.direct_messages import dm_open
 from utils.pagination import PageControlView, Paginator
-from utils.reminder_definitions import ReminderChannel, COLOR_EMBED_DARK
+from utils.globals import ReminderChannel, COLOR_EMBED_DARK
 
 
 class Reminder(commands.GroupCog):

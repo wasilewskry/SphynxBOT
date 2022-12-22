@@ -1,6 +1,14 @@
 from enum import Enum, auto
 
 
+COLOR_EMBED_DARK = 0x2F3136
+
+
+class ReminderChannel(Enum):
+    Here = auto()
+    DM = auto()
+
+
 class UnitType(Enum):
     Celsius = auto()
     Fahrenheit = auto()
