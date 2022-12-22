@@ -93,6 +93,28 @@ class Reminder(commands.GroupCog):
         else:
             self.check_regular_reminders.start()
 
+    @relative.command(name='delete')
+    @app_commands.describe(timestamp='Creation timestamp of the reminder you wish to delete')
+    async def relative_delete(self, interaction: discord.Interaction, timestamp: int):
+        """Deletes a set reminder"""
+        async with asqlite.connect(database_path) as db:
+            user_id = interaction.user.id
+            await db.execute("INSERT OR IGNORE INTO users (id) VALUES (?);", (user_id,))
+            query = f"DELETE FROM reminders WHERE user_id = ? AND creation_timestamp = ? RETURNING *;"
+            deleted = await db.fetchone(query, (user_id, timestamp))
+            await db.commit()
+
+        if deleted:
+            await interaction.response.send_message(f"Deleted ❰ {timestamp} ❱!", ephemeral=True)
+
+            if self.check_regular_reminders.is_running():
+                self.check_regular_reminders.restart()
+            else:
+                self.check_regular_reminders.start()
+
+        else:
+            await interaction.response.send_message(f"Cannot delete: ❰ {timestamp} ❱ does not exist!", ephemeral=True)
+
     @tasks.loop()
     async def check_regular_reminders(self):
         async with asqlite.connect(database_path) as db:
