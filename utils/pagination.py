@@ -6,7 +6,7 @@ class Paginator:
     def __init__(self, content: list, page_size: int = 5):
         self.content = content
         self.page_size = page_size
-        self.last_page = len(content) // (page_size + 1)
+        self.last_page = max(0, len(content) - 1) // page_size
         self.page = 0
 
     def page_content(self):
