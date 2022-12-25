@@ -9,6 +9,11 @@ class ReminderChannel(Enum):
     DM = auto()
 
 
+class ReminderType(Enum):
+    Single = auto()
+    Daily = auto()
+
+
 class UnitType(Enum):
     Celsius = auto()
     Fahrenheit = auto()
