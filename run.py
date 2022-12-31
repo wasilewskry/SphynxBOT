@@ -13,6 +13,7 @@ class Sphynx(commands.Bot):
             'cogs.owner',
             'cogs.unit',
             'cogs.reminder',
+            'cogs.cinema',
         ]
 
     async def setup_hook(self):
@@ -23,4 +24,4 @@ class Sphynx(commands.Bot):
 # -------------------------------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
     bingus = Sphynx()
-    bingus.run(token)
+    bingus.run(token, root_logger=True)
