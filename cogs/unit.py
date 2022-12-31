@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils.globals import UnitType, ConversionTable
+from cogs.helper.unit_helper import UnitType, ConversionTable
 
 
 class Unit(commands.GroupCog):
