@@ -11,10 +11,10 @@ from discord.ext import commands, tasks
 
 from cogs.helper.reminder_helper import ReminderType, ReminderChannel
 from config import database_path
-from utils.direct_messages import dm_open
+from utils.misc import dm_open
 from utils.constants import COLOR_EMBED_DARK
 from utils.pagination import PageControlView, Paginator
-from utils.time import next_datetime, get_timezones
+from utils.misc import next_datetime, get_timezones
 
 
 async def timezone_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
