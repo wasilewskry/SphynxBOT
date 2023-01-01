@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import discord
 
 from cogs.helper.cinema_helper import Person, TMDB_IMAGE_BASE_URL, TMDB_PROFILE_SIZES, TMDB_WEB_BASE_URL
-from utils.globals import COLOR_EMBED_DARK
+from utils.constants import COLOR_EMBED_DARK
 
 
 class CinemaPersonView(discord.ui.View):

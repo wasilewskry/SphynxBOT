@@ -10,7 +10,7 @@ import discord
 from async_lru import alru_cache
 
 from config import tmdb_api_key
-from utils.globals import COLOR_EMBED_DARK
+from utils.constants import COLOR_EMBED_DARK
 from utils.misc import trim_by_paragraph, calculate_age, get_as_json
 
 _log = logging.getLogger(__name__)
