@@ -7,6 +7,32 @@ from cogs.helper.cinema_helper import Person, TMDB_IMAGE_BASE_URL, TMDB_PROFILE_
 from utils.constants import COLOR_EMBED_DARK
 
 
+class PaginatingView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.constructor_kwargs = {'index': 0}
+        self.embed_constructor = None
+        self.page_count = None
+
+    @discord.ui.button(label='PREV', style=discord.ButtonStyle.gray, row=1, disabled=True)
+    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays the previous page."""
+        self.constructor_kwargs['index'] -= 1
+        self.next_page.disabled = False
+        if self.constructor_kwargs['index'] == 0:
+            button.disabled = True
+        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
+
+    @discord.ui.button(label='NEXT', style=discord.ButtonStyle.gray, row=1, disabled=True)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays the next page."""
+        self.constructor_kwargs['index'] += 1
+        self.previous_page.disabled = False
+        if self.constructor_kwargs['index'] == self.page_count - 1:
+            button.disabled = True
+        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
+
+
 class CinemaPersonView(discord.ui.View):
     def __init__(self, person: Person):
         super().__init__()
@@ -127,36 +153,15 @@ class CinemaPersonView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=view)
 
 
-class CinemaPersonBaseSubview(discord.ui.View):
+class CinemaPersonBaseSubview(PaginatingView):
     def __init__(self, parent_view: CinemaPersonView):
         super().__init__()
         self.parent_view = parent_view
-        self.page_count = None
-        self.embed_constructor = None
-        self.constructor_kwargs = {'index': 0}
 
     @discord.ui.button(label='RETURN', style=discord.ButtonStyle.red, row=1)
     async def return_to_main_view(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays the main embed."""
         await interaction.response.edit_message(embed=self.parent_view.person.main_embed(), view=self.parent_view)
-
-    @discord.ui.button(label='PREV', style=discord.ButtonStyle.gray, row=1, disabled=True)
-    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button that displays the previous page."""
-        self.constructor_kwargs['index'] -= 1
-        self.next_page.disabled = False
-        if self.constructor_kwargs['index'] == 0:
-            button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
-
-    @discord.ui.button(label='NEXT', style=discord.ButtonStyle.gray, row=1, disabled=True)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button that displays the next page."""
-        self.constructor_kwargs['index'] += 1
-        self.previous_page.disabled = False
-        if self.constructor_kwargs['index'] == self.page_count - 1:
-            button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
 
 
 class CinemaPersonBioView(CinemaPersonBaseSubview):
