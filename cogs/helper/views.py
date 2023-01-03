@@ -1,10 +1,39 @@
 import collections
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable
 
 import discord
 
 from cogs.helper.cinema_helper import Person, TMDB_IMAGE_BASE_URL, TMDB_PROFILE_SIZES, TMDB_WEB_BASE_URL
 from utils.constants import COLOR_EMBED_DARK
+
+
+class PaginatingView(discord.ui.View):
+    def __init__(self, embed_constructor: Callable[..., discord.Embed] = None, pages: List = None):
+        super().__init__()
+        self.pages = pages
+        self.page_count = len(self.pages) if self.pages else 0
+        self.embed_constructor = embed_constructor
+        self.constructor_kwargs = {'index': 0, 'pages': self.pages}
+        if self.page_count > 1:
+            self.next_page.disabled = False
+
+    @discord.ui.button(label='PREV', style=discord.ButtonStyle.gray, row=1, disabled=True)
+    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays the previous page."""
+        self.constructor_kwargs['index'] -= 1
+        self.next_page.disabled = False
+        if self.constructor_kwargs['index'] == 0:
+            button.disabled = True
+        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
+
+    @discord.ui.button(label='NEXT', style=discord.ButtonStyle.gray, row=1, disabled=True)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays the next page."""
+        self.constructor_kwargs['index'] += 1
+        self.previous_page.disabled = False
+        if self.constructor_kwargs['index'] == self.page_count - 1:
+            button.disabled = True
+        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
 
 
 class CinemaPersonView(discord.ui.View):
@@ -77,7 +106,7 @@ class CinemaPersonView(discord.ui.View):
             paginated[cat] = ['\n'.join(processed[x:x + page_size]) for x in range(0, len(processed), page_size)]
         return paginated
 
-    def image_embed(self, index: int = 0) -> discord.Embed:
+    def image_embed(self, index: int = 0, **kwargs) -> discord.Embed:
         """Creates the image display embed."""
         embed = discord.Embed(title=self.person.name, url=self.person.profile_url, color=COLOR_EMBED_DARK)
         embed.set_image(url=self.image_urls[index])
@@ -85,7 +114,7 @@ class CinemaPersonView(discord.ui.View):
         embed.set_footer(text=f'Picture {index + 1}/{self.image_count}')
         return embed
 
-    def bio_embed(self, index: int = 0) -> discord.Embed:
+    def bio_embed(self, index: int = 0, **kwargs) -> discord.Embed:
         """Creates the biography display embed."""
         embed = discord.Embed(title=self.person.name,
                               description=self.paginated_bio[index],
@@ -95,7 +124,7 @@ class CinemaPersonView(discord.ui.View):
         embed.set_footer(text=f'Page {index + 1}/{self.bio_page_count}')
         return embed
 
-    def credits_embed(self, category: str, index: int = 0) -> discord.Embed:
+    def credits_embed(self, category: str, index: int = 0, **kwargs) -> discord.Embed:
         """Creates the credits display embed."""
         embed = discord.Embed(title=self.person.name,
                               description=self.paginated_credits[category][index],
@@ -127,41 +156,20 @@ class CinemaPersonView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=view)
 
 
-class CinemaPersonBaseSubview(discord.ui.View):
-    def __init__(self, parent_view: CinemaPersonView):
-        super().__init__()
+class CinemaPersonBaseSubview(PaginatingView):
+    def __init__(self, parent_view: CinemaPersonView, **kwargs):
+        super().__init__(**kwargs)
         self.parent_view = parent_view
-        self.page_count = None
-        self.embed_constructor = None
-        self.constructor_kwargs = {'index': 0}
 
     @discord.ui.button(label='RETURN', style=discord.ButtonStyle.red, row=1)
     async def return_to_main_view(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays the main embed."""
         await interaction.response.edit_message(embed=self.parent_view.person.main_embed(), view=self.parent_view)
 
-    @discord.ui.button(label='PREV', style=discord.ButtonStyle.gray, row=1, disabled=True)
-    async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button that displays the previous page."""
-        self.constructor_kwargs['index'] -= 1
-        self.next_page.disabled = False
-        if self.constructor_kwargs['index'] == 0:
-            button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
-
-    @discord.ui.button(label='NEXT', style=discord.ButtonStyle.gray, row=1, disabled=True)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button that displays the next page."""
-        self.constructor_kwargs['index'] += 1
-        self.previous_page.disabled = False
-        if self.constructor_kwargs['index'] == self.page_count - 1:
-            button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
-
 
 class CinemaPersonBioView(CinemaPersonBaseSubview):
-    def __init__(self, parent_view: CinemaPersonView):
-        super().__init__(parent_view)
+    def __init__(self, parent_view: CinemaPersonView, **kwargs):
+        super().__init__(parent_view, **kwargs)
         self.page_count = self.parent_view.bio_page_count
         self.embed_constructor = self.parent_view.bio_embed
         if self.page_count > 1:
@@ -169,8 +177,8 @@ class CinemaPersonBioView(CinemaPersonBaseSubview):
 
 
 class CinemaPersonPictureView(CinemaPersonBaseSubview):
-    def __init__(self, parent_view: CinemaPersonView):
-        super().__init__(parent_view)
+    def __init__(self, parent_view: CinemaPersonView, **kwargs):
+        super().__init__(parent_view, **kwargs)
         self.page_count = self.parent_view.image_count
         self.embed_constructor = self.parent_view.image_embed
         if self.page_count > 1:
@@ -178,8 +186,8 @@ class CinemaPersonPictureView(CinemaPersonBaseSubview):
 
 
 class CinemaPersonCreditsView(CinemaPersonBaseSubview):
-    def __init__(self, parent_view: CinemaPersonView):
-        super().__init__(parent_view)
+    def __init__(self, parent_view: CinemaPersonView, **kwargs):
+        super().__init__(parent_view, **kwargs)
         self.constructor_kwargs['category'] = self.parent_view.person.known_for_department
         self.page_count = self.parent_view.credits_page_counts[self.constructor_kwargs['category']]
         self.embed_constructor = self.parent_view.credits_embed

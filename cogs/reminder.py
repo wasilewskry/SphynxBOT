@@ -2,7 +2,7 @@ import asyncio
 import datetime as dt
 import time
 import zoneinfo
-from typing import List
+from typing import List, Tuple
 
 import asqlite
 import discord
@@ -10,10 +10,10 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from cogs.helper.reminder_helper import ReminderType, ReminderChannel
+from cogs.helper.views import PaginatingView
 from config import database_path
-from utils.misc import dm_open
+from utils.misc import dm_open, trim_by_paragraph
 from utils.constants import COLOR_EMBED_DARK
-from utils.pagination import PageControlView, Paginator
 from utils.misc import next_datetime, get_timezones
 
 
@@ -33,16 +33,27 @@ class Reminder(commands.GroupCog):
         else:
             self.check_reminders.start()
 
-    def _display_list(self, paginator: Paginator) -> discord.Embed:
-        page = paginator.page_content()
+    def _paginate_reminders(self, reminders, reminder_max_length: int = 500) -> List[List[Tuple]]:
+        """"""
+        pages = []
+        page = []
+        for reminder in reminders:
+            page.append(
+                (f"{reminder['type']} ❰ {reminder['creation_timestamp']} ❱ <t:{reminder['reminder_timestamp']}>",
+                 trim_by_paragraph(reminder['description']), reminder_max_length))
+            if len(page) == 5:
+                pages.append(page)
+                page = []
+        if page:
+            pages.append(page)
+        return pages
+
+    def listing_embed(self, pages, index: int = 0) -> discord.Embed:
         embed = discord.Embed(
-            title=f"Page {paginator.page + 1}/{paginator.last_page + 1}",
+            title=f"Page {index + 1}/{len(pages)}",
             color=COLOR_EMBED_DARK)
-        for reminder in page:
-            embed.add_field(
-                name=f"{reminder['type']} ❰ {reminder['creation_timestamp']} ❱ <t:{reminder['reminder_timestamp']}>",
-                value=reminder['description'],
-                inline=False)
+        for field in pages[index]:
+            embed.add_field(name=field[0], value=field[1], inline=False)
         return embed
 
     async def _reminder_add(self, interaction: discord.Interaction, reminder_type: ReminderType,
@@ -90,9 +101,10 @@ class Reminder(commands.GroupCog):
         if not reminders:
             await interaction.response.send_message("No reminders set right now.", ephemeral=True)
         else:
-            paginator = Paginator(reminders)
-            view = PageControlView(paginator, self._display_list)
-            await interaction.response.send_message(embed=self._display_list(paginator), view=view, ephemeral=True)
+            paginated_reminders = self._paginate_reminders(reminders)
+            embed = self.listing_embed(paginated_reminders, 0)
+            view = PaginatingView(self.listing_embed, paginated_reminders)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name='delete')
     @app_commands.describe(timestamp='Creation ❰ timestamp ❱ of the reminder you wish to delete')
