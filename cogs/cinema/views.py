@@ -17,8 +17,9 @@ class PersonView(discord.ui.View):
         self.person = person
         self.client = client
         self.short_bio = trim_by_paragraph(self.person.biography, EMBED_DESC_MAX_LENGTH // 4)
-        self.stringified_notable_credits = '\n'.join(
-            [f'[{c.title} ({c.release_date.year})]({c.web_url})' for c in self.person.notable_credits])
+        if self.person.notable_credits:
+            self.stringified_notable_credits = '\n'.join(
+                [f'[{c.title} ({c.release_date.year})]({c.web_url})' for c in self.person.notable_credits])
         if self.person.images:
             self.images.disabled = False
         if self.person.biography != self.short_bio:
