@@ -13,7 +13,7 @@ class Sphynx(commands.Bot):
             'cogs.owner_old',
             'cogs.unit_old',
             'cogs.reminder_old',
-            'cogs.cinema_old',
+            'cogs.cinema'
         ]
 
     async def setup_hook(self):
