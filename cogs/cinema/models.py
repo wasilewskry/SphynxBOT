@@ -75,9 +75,9 @@ class Credit:
         else:
             s = '``----``'
         if self.media_type == 'movie':
-            s += f' 🎥 '
+            s += f' \U0001F3A5 '  # 🎥
         else:
-            s += f' 📺 '
+            s += f' \U0001F4FA '  # 📺
         s += f'[{self.title}]({TmdbClient.base_web_url}/{self.media_type}/{self.id})'
         if self.characters:
             with_episodes = self._with_episodes(self.characters)

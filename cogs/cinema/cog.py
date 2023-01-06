@@ -13,7 +13,7 @@ from .views import PersonView
 _log = logging.getLogger(__name__)
 
 
-class CinemaCog(commands.GroupCog, group_name='cinema_new'):
+class CinemaCog(commands.GroupCog, group_name='cinema'):
     def __init__(self, bot: Sphynx, tmdb_client: TmdbClient):
         self.bot = bot
         self.tmdb_client = tmdb_client
