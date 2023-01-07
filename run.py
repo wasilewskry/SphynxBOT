@@ -10,7 +10,7 @@ class Sphynx(commands.Bot):
                          intents=discord.Intents.all())
 
         self.initial_extensions = [
-            'cogs.owner_old',
+            'cogs.owner',
             'cogs.unit',
             'cogs.reminder_old',
             'cogs.cinema'
