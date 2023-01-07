@@ -1,5 +1,4 @@
 import collections
-import logging
 
 import discord
 from discord import app_commands
@@ -9,8 +8,6 @@ from discord.ext import commands
 from run import Sphynx
 from .models import TmdbClient
 from .views import PersonView
-
-_log = logging.getLogger(__name__)
 
 
 class CinemaCog(commands.GroupCog, group_name='cinema'):
