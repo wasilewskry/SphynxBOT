@@ -23,7 +23,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.rename(person_id='name')
     @app_commands.describe(person_id='Name of the person you want to look up')
     async def person(self, interaction: discord.Interaction, person_id: int):
-        """Displays personal details"""
+        """Displays personal details."""
         person = await self.tmdb_client.get_person(person_id)
         view = PersonView(person, self.tmdb_client)
         embed = view.main_embed()
