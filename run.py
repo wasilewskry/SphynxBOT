@@ -11,7 +11,7 @@ class Sphynx(commands.Bot):
 
         self.initial_extensions = [
             'cogs.owner_old',
-            'cogs.unit_old',
+            'cogs.unit',
             'cogs.reminder_old',
             'cogs.cinema'
         ]
