@@ -1,15 +1,17 @@
-from typing import List, Callable
+from collections.abc import Callable
 
 import discord
 
 
 class PaginatingView(discord.ui.View):
-    def __init__(self, embed_constructor: Callable[..., discord.Embed] = None, pages: List = None):
+    """Simple pagination view with buttons to show next or previous page."""
+
+    def __init__(self, pages: list | dict[str, list], embed_constructor: Callable[..., discord.Embed]):
         super().__init__()
         self.pages = pages
-        self.page_count = len(self.pages) if self.pages else 0
+        self.page_count = len(pages)
         self.embed_constructor = embed_constructor
-        self.constructor_kwargs = {'index': 0, 'pages': self.pages}
+        self.constructor_kwargs = {'index': 0}
         if self.page_count > 1:
             self.next_page.disabled = False
 
@@ -20,7 +22,7 @@ class PaginatingView(discord.ui.View):
         self.next_page.disabled = False
         if self.constructor_kwargs['index'] == 0:
             button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
+        await interaction.response.edit_message(view=self, embed=self.embed_constructor(**self.constructor_kwargs))
 
     @discord.ui.button(label='NEXT', style=discord.ButtonStyle.gray, row=1, disabled=True)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -29,4 +31,4 @@ class PaginatingView(discord.ui.View):
         self.previous_page.disabled = False
         if self.constructor_kwargs['index'] == self.page_count - 1:
             button.disabled = True
-        await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs), view=self)
+        await interaction.response.edit_message(view=self, embed=self.embed_constructor(**self.constructor_kwargs))

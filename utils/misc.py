@@ -26,6 +26,16 @@ def calculate_age(born: dt.date, died: dt.date = None) -> int:
     return last_alive.year - born.year - ((last_alive.month, last_alive.day) < (born.month, born.day))
 
 
+def strptime(date_string, parse_format, no_time=False, default=None):
+    try:
+        if no_time:
+            return dt.datetime.strptime(date_string, parse_format).date()
+        else:
+            return dt.datetime.strptime(date_string, parse_format)
+    except (ValueError, TypeError):
+        return default
+
+
 async def get_as_json(url: str):
     """Returns a parsed json response from url."""
     async with aiohttp.ClientSession() as cs:
