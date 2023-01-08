@@ -1,0 +1,3 @@
+discord
+tzdata
+git+https://github.com/Rapptz/asqlite
