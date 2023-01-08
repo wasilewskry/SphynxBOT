@@ -23,5 +23,5 @@ class Sphynx(commands.Bot):
 
 # -------------------------------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
-    bingus = Sphynx()
-    bingus.run(token, root_logger=True)
+    sphynx = Sphynx()
+    sphynx.run(token, root_logger=True)
