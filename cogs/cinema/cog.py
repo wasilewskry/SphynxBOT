@@ -16,7 +16,10 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         self.tmdb_client = tmdb_client
 
     @app_commands.command()
-    async def test(self, interaction: discord.Interaction):
+    @app_commands.rename(movie_id='name')
+    @app_commands.describe(movie_id='Name of the movie you want to look up')
+    async def movie(self, interaction: discord.Interaction, movie_id: int):
+        """Displays movie details."""
         ...
 
     @app_commands.command()

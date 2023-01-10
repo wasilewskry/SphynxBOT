@@ -155,6 +155,37 @@ class Person:
                 c.department == self.known_for_department][:count]
 
 
+class Movie:
+    def __init__(self, **kwargs):
+        self.adult: bool = kwargs.get('adult')
+        self.backdrop_path: str = kwargs.get('backdrop_path')
+        # self.belongs_to_collection: ??? = kwargs.get('belongs_to_collection')
+        self.budget: int = kwargs.get('budget')
+        # self.genres: ??? = kwargs.get('genres')
+        self.homepage: str = kwargs.get('homepage')
+        self.id: int = kwargs.get('id')
+        self.imdb_id: str = kwargs.get('imdb_id')
+        self.original_language: str = kwargs.get('original_language')
+        self.original_title: str = kwargs.get('original_title')
+        self.overview: str = kwargs.get('overview')
+        self.popularity: float = kwargs.get('popularity')
+        self.poster_path: str = kwargs.get('poster_path')
+        # self.production_companies: ??? = kwargs.get('production_companies')
+        # self.production_countries: ??? = kwargs.get('production_countries')
+        self.release_date: dt.date = strptime(kwargs.get('release_date'), '%Y-%m-%d', no_time=True)
+        self.revenue: int = kwargs.get('revenue')
+        self.runtime: int = kwargs.get('runtime')
+        # self.spoken_languages: ??? = kwargs.get('spoken_languages')
+        self.status: str = kwargs.get('status')
+        self.tagline: str = kwargs.get('tagline')
+        self.title: str = kwargs.get('title')
+        self.video: bool = kwargs.get('video')
+        self.vote_average: float = kwargs.get('vote_average')
+        self.vote_count: float = kwargs.get('vote_count')
+        # self.images: ??? = kwargs.get('images')
+        # self.external_ids: ??? = kwargs.get('external_ids')
+
+
 class TmdbClient:
     """TMDB client class used for sending requests to the API."""
     base_api_url = 'https://api.themoviedb.org/3'
