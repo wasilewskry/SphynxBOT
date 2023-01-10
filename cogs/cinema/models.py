@@ -102,7 +102,7 @@ class Image:
     """Represents an image on TMDB."""
 
     def __init__(self, **kwargs):
-        self.image_type: str = kwargs.get('image_type')
+        self.image_category: str = kwargs.get('image_category')
         self.aspect_ratio: float = kwargs.get('aspect_ratio')
         self.height: int = kwargs.get('height')
         self.file_path: str = kwargs.get('file_path')
@@ -209,10 +209,7 @@ class TmdbClient:
         image_config = parsed['images']
         self.img_config = ImageConfiguration(**image_config)
 
-    async def get_person(self, person_id: int) -> Person:
-        """GET request for specified person."""
-        parsed = await self._get(f'/person/{person_id}', append_to_response='combined_credits,images,external_ids')
-        combined_credits = parsed.pop('combined_credits')
+    def _process_credits(self, combined_credits: dict[str, list[dict]]) -> list[Credit]:
         objectified_credits = []
         for credit_type in ['cast', 'crew']:
             for credit in combined_credits[credit_type]:
@@ -239,14 +236,23 @@ class TmdbClient:
                         getattr(obj, attr).append(credited_for)
                         getattr(obj, 'episode_counts')[credited_for] = episode_count
                     objectified_credits.append(obj)
-        parsed['credits'] = objectified_credits
-        images = parsed.pop('images')
+        return objectified_credits
+
+    def _process_images(self, images: dict[str, list[dict]]) -> list[Image]:
         objectified_images = []
-        for image in images['profiles']:
-            obj = Image(**image)
-            obj.image_type = 'profile'
-            objectified_images.append(obj)
-        parsed['images'] = objectified_images
+        for category, image_list in images.items():
+            for img in image_list:
+                obj = Image(**img)
+                obj.image_category = category
+                objectified_images.append(obj)
+        return objectified_images
+
+    async def get_person(self, person_id: int) -> Person:
+        """GET request for specified person."""
+        parsed = await self._get(f'/person/{person_id}', append_to_response='combined_credits,images,external_ids')
+        combined_credits = parsed.pop('combined_credits')
+        parsed['credits'] = self._process_credits(combined_credits)
+        parsed['images'] = self._process_images(parsed['images'])
         parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
         return Person(**parsed)
 
