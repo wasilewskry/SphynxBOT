@@ -105,6 +105,7 @@ class Image:
         self.image_category: str = kwargs.get('image_category')
         self.aspect_ratio: float = kwargs.get('aspect_ratio')
         self.height: int = kwargs.get('height')
+        self.iso_639_1: str = kwargs.get('iso_639_1')
         self.file_path: str = kwargs.get('file_path')
         self.vote_average: float = kwargs.get('vote_average')
         self.vote_count: int = kwargs.get('vote_count')
@@ -155,35 +156,84 @@ class Person:
                 c.department == self.known_for_department][:count]
 
 
-class Movie:
+class Production:
+    media_type = None
+
     def __init__(self, **kwargs):
-        self.adult: bool = kwargs.get('adult')
-        self.backdrop_path: str = kwargs.get('backdrop_path')
-        # self.belongs_to_collection: ??? = kwargs.get('belongs_to_collection')
-        self.budget: int = kwargs.get('budget')
-        # self.genres: ??? = kwargs.get('genres')
-        self.homepage: str = kwargs.get('homepage')
         self.id: int = kwargs.get('id')
-        self.imdb_id: str = kwargs.get('imdb_id')
-        self.original_language: str = kwargs.get('original_language')
-        self.original_title: str = kwargs.get('original_title')
-        self.overview: str = kwargs.get('overview')
-        self.popularity: float = kwargs.get('popularity')
+        self.adult: bool = kwargs.get('adult')
+        self.title: str = kwargs.get('title', kwargs.get('name'))
+        self.original_title: str = kwargs.get('original_title', kwargs.get('original_name'))
+        self.release_date: dt.date = strptime(kwargs.get('release_date', kwargs.get('first_air_date')), '%Y-%m-%d',
+                                              no_time=True)
+        self.backdrop_path: str = kwargs.get('backdrop_path')
         self.poster_path: str = kwargs.get('poster_path')
-        # self.production_companies: ??? = kwargs.get('production_companies')
-        # self.production_countries: ??? = kwargs.get('production_countries')
-        self.release_date: dt.date = strptime(kwargs.get('release_date'), '%Y-%m-%d', no_time=True)
-        self.revenue: int = kwargs.get('revenue')
-        self.runtime: int = kwargs.get('runtime')
-        # self.spoken_languages: ??? = kwargs.get('spoken_languages')
-        self.status: str = kwargs.get('status')
+        self.overview: str = kwargs.get('overview')
+        self.original_language: str = kwargs.get('original_language')
+        self.popularity: float = kwargs.get('popularity')
         self.tagline: str = kwargs.get('tagline')
-        self.title: str = kwargs.get('title')
-        self.video: bool = kwargs.get('video')
+        self.genres: list[str] = kwargs.get('genres')
+        self.homepage: str = kwargs.get('homepage')
+        self.status: str = kwargs.get('status')
         self.vote_average: float = kwargs.get('vote_average')
         self.vote_count: float = kwargs.get('vote_count')
-        # self.images: ??? = kwargs.get('images')
-        # self.external_ids: ??? = kwargs.get('external_ids')
+        self.spoken_languages: list[str] = kwargs.get('spoken_languages')
+        self.images: list[Image] = kwargs.get('images')
+        self.external_ids: ExternalIds = kwargs.get('external_ids')
+        self.keywords: list[str] = kwargs.get('keywords')
+        # self.production_companies: ??? = kwargs.get('production_companies')
+        # self.production_countries: ??? = kwargs.get('production_countries')
+        self.web_url = f'{TmdbClient.base_web_url}/{self.media_type}/{self.id}'
+
+    def pretty_score(self):
+        return f'{int(self.vote_average * 10)}%'
+
+
+class Movie(Production):
+    media_type = 'movie'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.budget: int = kwargs.get('budget')
+        self.revenue: int = kwargs.get('revenue')
+        self.runtime: int = kwargs.get('runtime')
+        self.video: bool = kwargs.get('video')
+        # self.belongs_to_collection: ??? = kwargs.get('belongs_to_collection')
+
+    def pretty_runtime(self):
+        if not self.runtime:
+            return '-'
+        hours = self.runtime // 60
+        minutes = self.runtime % 60
+        return f"{(str(hours) + 'h ') if hours else ''}{str(minutes) + 'm'}"
+
+
+class Tv(Production):
+    media_type = 'tv'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.episode_run_time: list[int] = kwargs.get('episode_run_time')
+        self.last_air_date: dt.date = strptime(kwargs.get('last_air_date'), '%Y-%m-%d', no_time=True)
+        self.created_by: list[Person] = kwargs.get('created_by')
+        self.in_production: bool = kwargs.get('in_production')
+        self.languages: list[str] = kwargs.get('languages')
+        # self.last_episode_to_air: ??? = kwargs.get('last_episode_to_air')
+        # self.next_episode_to_air: ??? = kwargs.get('next_episode_to_air')
+        self.networks: list[str] = kwargs.get('networks')
+        self.number_of_episodes: int = kwargs.get('number_of_episodes')
+        self.number_of_seasons: int = kwargs.get('number_of_seasons')
+        self.origin_country: list[str] = kwargs.get('origin_country')
+        ## self.seasons: ??? = kwargs.get('seasons')
+        self.type: str = kwargs.get('type')
+
+    def pretty_runtime(self):
+        if not self.episode_run_time:
+            return '-'
+        runtime = self.episode_run_time[0]  # For some reason there's never more than 1 value
+        hours = runtime // 60
+        minutes = runtime % 60
+        return f"{(str(hours) + 'h ') if hours else ''}{str(minutes) + 'm'}"
 
 
 class TmdbClient:
@@ -194,6 +244,7 @@ class TmdbClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.img_config: ImageConfiguration | None = None
+        self.language_config: dict[str, str] = {}
 
     async def _get(self, endpoint: str, **kwargs):
         """Creates a request to a given endpoint. Accepts query parameters as keyword arguments."""
@@ -203,11 +254,14 @@ class TmdbClient:
         return await get_as_json(url)
 
     @alru_cache(maxsize=1)
-    async def update_image_configuration(self):
+    async def update_configuration(self):
         """Updates image configuration attribute in class instance."""
         parsed = await self._get('/configuration')
         image_config = parsed['images']
         self.img_config = ImageConfiguration(**image_config)
+        parsed = await self._get('/configuration/languages')
+        for conf in parsed:
+            self.language_config[conf['iso_639_1']] = conf['english_name']
 
     def _process_credits(self, combined_credits: dict[str, list[dict]]) -> list[Credit]:
         objectified_credits = []
@@ -256,7 +310,42 @@ class TmdbClient:
         parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
         return Person(**parsed)
 
+    async def get_production(self, production_id: int, is_movie: bool) -> Movie | Tv:
+        """GET request for specified movie or show."""
+        if is_movie:
+            obj = Movie
+            parsed = await self._get(f'/movie/{production_id}', append_to_response='alternative_titles,credits,'
+                                                                                   'external_ids,images,keywords,'
+                                                                                   'recommendations,release_dates,'
+                                                                                   'similar,videos')
+            parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['keywords']]
+        else:
+            obj = Tv
+            parsed = await self._get(f'/tv/{production_id}', append_to_response='aggregate_credits,alternative_titles,'
+                                                                                'content_ratings,external_ids,images,'
+                                                                                'keywords,recommendations,'
+                                                                                'screened_theatrically,similar,videos')
+            parsed['created_by'] = [Person(**person) for person in parsed['created_by']]
+            parsed['networks'] = [network['name'] for network in parsed['networks']]
+            parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['results']]
+
+        parsed['genres'] = [genre['name'] for genre in parsed['genres']]
+        parsed['spoken_languages'] = [self.language_config[lang['iso_639_1']] for lang in parsed['spoken_languages']]
+        parsed['images'] = self._process_images(parsed['images'])
+        parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
+        return obj(**parsed)
+
     async def query_person(self, query: str) -> list[Person]:
         """GET request used to search for people based on user query."""
         parsed = await self._get(f'/search/person', query=query)
         return [Person(**kwargs) for kwargs in parsed['results']]
+
+    async def query_movie(self, query: str) -> list[Movie]:
+        """GET request used to search for movies based on user query."""
+        parsed = await self._get(f'/search/movie', query=query)
+        return [Movie(**kwargs) for kwargs in parsed['results']]
+
+    async def query_tv(self, query: str) -> list[Tv]:
+        """GET request used to search for shows based on user query."""
+        parsed = await self._get(f'/search/tv', query=query)
+        return [Tv(**kwargs) for kwargs in parsed['results']]

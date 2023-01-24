@@ -5,7 +5,8 @@ import discord
 
 from utils.constants import EMBED_DESC_MAX_LENGTH, COLOR_EMBED_DARK
 from utils.misc import trim_by_paragraph
-from .models import Person, TmdbClient
+from .helpers import verbose_date
+from .models import Person, TmdbClient, Movie, Production, Tv
 from ..shared_views import PaginatingView
 
 
@@ -213,3 +214,75 @@ class PersonCreditsSubview(PersonPaginatingSubview):
         selected_option.default = True
         return await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs),
                                                        view=self)
+
+
+class ProductionView(discord.ui.View):
+    def __init__(self, production: Production, client: TmdbClient):
+        super().__init__()
+        self.production = production
+        self.client = client
+
+    def _embed_description(self):
+        if self.production.tagline:
+            return f'**{self.production.tagline}**\n\n{self.production.overview}'
+        else:
+            return self.production.overview
+
+    def _embed_title(self):
+        if self.production.release_date:
+            return f'{self.production.title} ({self.production.release_date.year})'
+        else:
+            return self.production.title
+
+    def _base_embed(self) -> discord.Embed:
+        embed = discord.Embed(title=self._embed_title(),
+                              description=self._embed_description(),
+                              url=self.production.web_url,
+                              color=COLOR_EMBED_DARK)
+        img_config = self.client.img_config
+        if self.production.poster_path:
+            url = img_config.secure_base_url + img_config.poster_sizes[-1] + self.production.poster_path
+            embed.set_thumbnail(url=url)
+        if self.production.backdrop_path:
+            url = img_config.secure_base_url + img_config.backdrop_sizes[-1] + self.production.backdrop_path
+            embed.set_image(url=url)
+        embed.add_field(name='Genres',
+                        value=', '.join(self.production.genres) if self.production.genres else '-',
+                        inline=False)
+        embed.add_field(name='Status', value=self.production.status if self.production.status else '-')
+        embed.add_field(name='User score', value=self.production.pretty_score())
+        embed.set_footer(text=', '.join(self.production.keywords))
+        return embed
+
+
+class MovieView(ProductionView):
+    def __init__(self, movie: Movie, client: TmdbClient):
+        super().__init__(movie, client)
+        self.movie = movie
+
+    def main_embed(self) -> discord.Embed:
+        """Returns the embed used for displaying the movie's primary information."""
+        embed = self._base_embed()
+        embed.add_field(name='Runtime', value=self.movie.pretty_runtime())
+        embed.add_field(name='Release date',
+                        value=verbose_date(self.movie.release_date) if self.movie.release_date else '-')
+        embed.add_field(name='Budget', value=f'${self.movie.budget:,}' if self.movie.budget else '-')
+        embed.add_field(name='Revenue', value=f'${self.movie.revenue:,}' if self.movie.revenue else '-')
+        return embed
+
+
+class TvView(ProductionView):
+    def __init__(self, tv: Tv, client: TmdbClient):
+        super().__init__(tv, client)
+        self.tv = tv
+
+    def main_embed(self) -> discord.Embed:
+        """Returns the embed used for displaying the movie's primary information."""
+        embed = self._base_embed()
+        embed.add_field(name='Episode runtime', value=self.tv.pretty_runtime())
+        embed.add_field(name='Type', value=self.tv.type)
+        embed.add_field(name='First aired', value=verbose_date(self.tv.release_date) if self.tv.release_date else '-')
+        embed.add_field(name='Last aired', value=verbose_date(self.tv.last_air_date) if self.tv.last_air_date else '-')
+        if self.tv.created_by:
+            embed.set_author(name='Created by ' + ', '.join([person.name for person in self.tv.created_by]))
+        return embed
