@@ -1,4 +1,5 @@
 import datetime as dt
+from copy import deepcopy
 
 from async_lru import alru_cache
 
@@ -20,42 +21,21 @@ class ImageConfiguration:
 
 
 class Credit:
-    """
-    Represents a credit for a movie or a show.
-    Unlike the API, this object merges credits for the same production but different characters/jobs.
-    """
-
     def __init__(self, **kwargs):
         self.credit_type: str = kwargs.get('credit_type')
         self.media_type: str = kwargs.get('media_type')
-        # Cast
-        self.characters: list[str] = kwargs.get('characters', [])
-        # Crew
-        self.jobs: list[str] = kwargs.get('jobs', [])
-        # Movie
-        self.video: bool = kwargs.get('video')
-        # TV
-        self.episode_counts: dict[str, int] = kwargs.get('episode_counts', {})
-        self.origin_country: list[str] = kwargs.get('origin_country')
-        # Unified
-        self.original_title: str = kwargs.get('original_title', kwargs.get('original_name'))
-        self.title: str = kwargs.get('title', kwargs.get('name'))
-        self.release_date: dt.date = strptime(kwargs.get('release_date', kwargs.get('first_air_date')), '%Y-%m-%d',
-                                              no_time=True)
-        # Shared
+        self.credit_subject: str = kwargs.get('title', kwargs.get('name'))
         self.department: str = kwargs.get('department')
-        self.adult: bool = kwargs.get('adult')
-        self.backdrop_path: str = kwargs.get('backdrop_path')
-        self.genre_ids: list[int] = kwargs.get('genre_ids')
+        self.characters: list[str] = kwargs.get('characters', [])
+        self.jobs: list[str] = kwargs.get('jobs', [])
+        self.order: int = kwargs.get('order')
         self.id: int = kwargs.get('id')
-        self.original_language: str = kwargs.get('original_language')
-        self.overview: str = kwargs.get('overview')
-        self.popularity: float = kwargs.get('popularity')
-        self.poster_path: str = kwargs.get('poster_path')
-        self.vote_average: float = kwargs.get('vote_average')
+        self.release_date: dt.date = strptime(kwargs.get('release_date', kwargs.get('first_air_date')),
+                                              '%Y-%m-%d',
+                                              no_time=True)
+        self.episode_counts: dict[str, int] = kwargs.get('episode_counts', {})
         self.vote_count: int = kwargs.get('vote_count')
-        self.credit_id: str = kwargs.get('credit_id')
-        self.web_url = f'{TmdbClient.base_web_url}/{self.media_type}/{self.id}'
+        self.web_url = f'{TmdbClient.base_web_url}/{self.media_type if self.media_type else "person"}/{self.id}'
 
     def __eq__(self, other):
         return self.media_type == other.media_type and self.id == other.id and self.department == other.department
@@ -70,22 +50,10 @@ class Credit:
             return False
 
     def __str__(self):
-        if self.release_date:
-            s = f'``{self.release_date.year}``'
+        if self.media_type:
+            return self._production_string()
         else:
-            s = '``----``'
-        if self.media_type == 'movie':
-            s += f' \U0001F3A5 '  # 🎥
-        else:
-            s += f' \U0001F4FA '  # 📺
-        s += f'[{self.title}]({TmdbClient.base_web_url}/{self.media_type}/{self.id})'
-        if self.characters:
-            with_episodes = self._with_episodes(self.characters)
-            s += ' as ' + ', '.join(with_episodes)
-        elif self.jobs:
-            with_episodes = self._with_episodes(self.jobs)
-            s += ' ... ' + ', '.join(with_episodes)
-        return s
+            return self._person_string()
 
     def _with_episodes(self, characters_or_jobs: list[str]):
         """Returns a list of character/job strings with the amount of episodes appended to them (if any)."""
@@ -96,6 +64,27 @@ class Credit:
             else:
                 with_episodes.append(c_or_j)
         return with_episodes
+
+    def _production_string(self):
+        if self.release_date:
+            s = f'``{self.release_date.year}``'
+        else:
+            s = '``----``'
+        if self.media_type == 'movie':
+            s += f' \U0001F3A5 '  # 🎥
+        else:
+            s += f' \U0001F4FA '  # 📺
+        s += f'[{self.credit_subject}]({self.web_url})'
+        if self.characters:
+            with_episodes = self._with_episodes(self.characters)
+            s += ' as ' + ', '.join(with_episodes)
+        elif self.jobs:
+            with_episodes = self._with_episodes(self.jobs)
+            s += ' ... ' + ', '.join(with_episodes)
+        return s
+
+    def _person_string(self):
+        return 'test'
 
 
 class Image:
@@ -181,6 +170,7 @@ class Production:
         self.images: list[Image] = kwargs.get('images')
         self.external_ids: ExternalIds = kwargs.get('external_ids')
         self.keywords: list[str] = kwargs.get('keywords')
+        self.credits: list[Credit] = kwargs.get('credits')
         # self.production_companies: ??? = kwargs.get('production_companies')
         # self.production_countries: ??? = kwargs.get('production_countries')
         self.web_url = f'{TmdbClient.base_web_url}/{self.media_type}/{self.id}'
@@ -224,7 +214,7 @@ class Tv(Production):
         self.number_of_episodes: int = kwargs.get('number_of_episodes')
         self.number_of_seasons: int = kwargs.get('number_of_seasons')
         self.origin_country: list[str] = kwargs.get('origin_country')
-        ## self.seasons: ??? = kwargs.get('seasons')
+        # self.seasons: ??? = kwargs.get('seasons')
         self.type: str = kwargs.get('type')
 
     def pretty_runtime(self):
@@ -264,6 +254,7 @@ class TmdbClient:
             self.language_config[conf['iso_639_1']] = conf['english_name']
 
     def _process_credits(self, combined_credits: dict[str, list[dict]]) -> list[Credit]:
+        # TODO: Rewrite this entire method
         objectified_credits = []
         for credit_type in ['cast', 'crew']:
             for credit in combined_credits[credit_type]:
@@ -271,24 +262,39 @@ class TmdbClient:
                     episode_count = credit.pop('episode_count')
                 except KeyError:
                     episode_count = None
+                try:
+                    credit['jobs_'] = credit.pop('jobs')
+                except KeyError:
+                    pass
                 obj = Credit(**credit)
                 obj.credit_type = credit_type
-                if credit_type == 'crew':
-                    attr = 'jobs'
-                    credited_for = credit['job']
+                if not (credit.get('roles') or credit.get('jobs_')):
+                    if credit_type == 'crew':
+                        attr = 'jobs'
+                        credited_for = credit['job']
+                    else:
+                        obj.department = 'Acting'
+                        attr = 'characters'
+                        credited_for = credit['character']
+                    if obj in objectified_credits:
+                        if credited_for:
+                            idx = objectified_credits.index(obj)
+                            getattr(objectified_credits[idx], attr).append(credited_for)
+                            getattr(objectified_credits[idx], 'episode_counts')[credited_for] = episode_count
+                    else:
+                        if credited_for:
+                            getattr(obj, attr).append(credited_for)
+                            getattr(obj, 'episode_counts')[credited_for] = episode_count
+                        objectified_credits.append(obj)
                 else:
-                    obj.department = 'Acting'
-                    attr = 'characters'
-                    credited_for = credit['character']
-                if obj in objectified_credits:
-                    if credited_for:
-                        idx = objectified_credits.index(obj)
-                        getattr(objectified_credits[idx], attr).append(credited_for)
-                        getattr(objectified_credits[idx], 'episode_counts')[credited_for] = episode_count
-                else:
-                    if credited_for:
-                        getattr(obj, attr).append(credited_for)
-                        getattr(obj, 'episode_counts')[credited_for] = episode_count
+                    if roles := credit.get('roles'):
+                        for role in roles:
+                            obj.characters.append(role['character'])
+                            obj.episode_counts[role['character']] = role['episode_count']
+                    if jobs := credit.get('jobs_'):
+                        for job in jobs:
+                            obj.jobs.append(job['job'])
+                            obj.episode_counts[job['job']] = job['episode_count']
                     objectified_credits.append(obj)
         return objectified_credits
 
@@ -310,30 +316,35 @@ class TmdbClient:
         parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
         return Person(**parsed)
 
-    async def get_production(self, production_id: int, is_movie: bool) -> Movie | Tv:
-        """GET request for specified movie or show."""
-        if is_movie:
-            obj = Movie
-            parsed = await self._get(f'/movie/{production_id}', append_to_response='alternative_titles,credits,'
-                                                                                   'external_ids,images,keywords,'
-                                                                                   'recommendations,release_dates,'
-                                                                                   'similar,videos')
-            parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['keywords']]
-        else:
-            obj = Tv
-            parsed = await self._get(f'/tv/{production_id}', append_to_response='aggregate_credits,alternative_titles,'
-                                                                                'content_ratings,external_ids,images,'
-                                                                                'keywords,recommendations,'
-                                                                                'screened_theatrically,similar,videos')
-            parsed['created_by'] = [Person(**person) for person in parsed['created_by']]
-            parsed['networks'] = [network['name'] for network in parsed['networks']]
-            parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['results']]
-
+    def _prepare_production(self, parsed_production: dict):
+        parsed = deepcopy(parsed_production)
         parsed['genres'] = [genre['name'] for genre in parsed['genres']]
         parsed['spoken_languages'] = [self.language_config[lang['iso_639_1']] for lang in parsed['spoken_languages']]
         parsed['images'] = self._process_images(parsed['images'])
         parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
-        return obj(**parsed)
+        return parsed
+
+    async def get_movie(self, movie_id: int) -> Movie:
+        parsed = await self._get(f'/movie/{movie_id}', append_to_response='alternative_titles,credits,'
+                                                                          'external_ids,images,keywords,'
+                                                                          'recommendations,release_dates,'
+                                                                          'similar,videos')
+        parsed = self._prepare_production(parsed)
+        parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['keywords']]
+        parsed['credits'] = self._process_credits(parsed['credits'])
+        return Movie(**parsed)
+
+    async def get_tv(self, tv_id: int) -> Tv:
+        parsed = await self._get(f'/tv/{tv_id}', append_to_response='aggregate_credits,alternative_titles,'
+                                                                    'content_ratings,external_ids,images,'
+                                                                    'keywords,recommendations,'
+                                                                    'screened_theatrically,similar,videos')
+        parsed = self._prepare_production(parsed)
+        parsed['created_by'] = [Person(**person) for person in parsed['created_by']]
+        parsed['networks'] = [network['name'] for network in parsed['networks']]
+        parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['results']]
+        parsed['credits'] = self._process_credits(parsed['aggregate_credits'])
+        return Tv(**parsed)
 
     async def query_person(self, query: str) -> list[Person]:
         """GET request used to search for people based on user query."""

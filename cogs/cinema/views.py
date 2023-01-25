@@ -270,6 +270,8 @@ class MovieView(ProductionView):
                         value=verbose_date(self.movie.release_date) if self.movie.release_date else '-')
         embed.add_field(name='Budget', value=f'${self.movie.budget:,}' if self.movie.budget else '-')
         embed.add_field(name='Revenue', value=f'${self.movie.revenue:,}' if self.movie.revenue else '-')
+        if directors := [credit.credit_subject for credit in self.movie.credits if 'Director' in credit.jobs]:
+            embed.set_author(name='Directed by ' + ', '.join([director for director in directors]))
         return embed
 
 

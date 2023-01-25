@@ -19,7 +19,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.describe(movie_id='Name of the movie you want to look up')
     async def movie(self, interaction: discord.Interaction, movie_id: int):
         """Displays movie details."""
-        movie = await self.tmdb_client.get_production(movie_id, is_movie=True)
+        movie = await self.tmdb_client.get_movie(movie_id)
         view = MovieView(movie, self.tmdb_client)
         embed = view.main_embed()
         await interaction.response.send_message(view=view, embed=embed)
@@ -38,7 +38,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.describe(tv_id='Name of the show you want to look up')
     async def tv(self, interaction: discord.Interaction, tv_id: int):
         """Displays tv details."""
-        tv = await self.tmdb_client.get_production(tv_id, is_movie=False)
+        tv = await self.tmdb_client.get_tv(tv_id)
         view = TvView(tv, self.tmdb_client)
         embed = view.main_embed()
         await interaction.response.send_message(view=view, embed=embed)
