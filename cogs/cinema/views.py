@@ -20,7 +20,7 @@ class PersonView(discord.ui.View):
         self.short_bio = trim_by_paragraph(self.person.biography, EMBED_DESC_MAX_LENGTH // 4)
         if self.person.notable_credits:
             self.stringified_notable_credits = '\n'.join(
-                [f'[{c.title} ({c.release_date.year})]({c.web_url})' for c in self.person.notable_credits])
+                [f'[{c.credit_subject} ({c.release_date.year})]({c.web_url})' for c in self.person.notable_credits])
         if self.person.images:
             self.images.disabled = False
         if self.person.biography != self.short_bio:
@@ -184,6 +184,8 @@ class PersonCreditsSubview(PersonPaginatingSubview):
                 self.department.append_option(discord.SelectOption(label=department))
         if self.page_count == 1:
             self.next_page.disabled = True
+        else:
+            self.next_page.disabled = False
 
     def credits_embed(self, **kwargs) -> discord.Embed:
         """Creates the credits display embed."""
