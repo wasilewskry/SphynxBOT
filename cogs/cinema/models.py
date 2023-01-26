@@ -30,6 +30,7 @@ class Credit:
         self.jobs: list[str] = kwargs.get('jobs', [])
         self.order: int = kwargs.get('order')
         self.id: int = kwargs.get('id')
+        self.gender: int = kwargs.get('gender')
         self.release_date: dt.date = strptime(kwargs.get('release_date', kwargs.get('first_air_date')),
                                               '%Y-%m-%d',
                                               no_time=True)
@@ -51,9 +52,18 @@ class Credit:
 
     def __str__(self):
         if self.media_type:
-            return self._production_string()
+            s = self._production_string()
         else:
-            return self._person_string()
+            s = self._person_string()
+
+        s += f'[{self.credit_subject}]({self.web_url})'
+        if self.characters:
+            with_episodes = self._with_episodes(self.characters)
+            s += ' as ' + ', '.join(with_episodes)
+        elif self.jobs:
+            with_episodes = self._with_episodes(self.jobs)
+            s += ' ... ' + ', '.join(with_episodes)
+        return s
 
     def _with_episodes(self, characters_or_jobs: list[str]):
         """Returns a list of character/job strings with the amount of episodes appended to them (if any)."""
@@ -71,20 +81,21 @@ class Credit:
         else:
             s = '``----``'
         if self.media_type == 'movie':
-            s += f' \U0001F3A5 '  # 🎥
+            s += ' \U0001F3A5 '  # 🎥
         else:
-            s += f' \U0001F4FA '  # 📺
-        s += f'[{self.credit_subject}]({self.web_url})'
-        if self.characters:
-            with_episodes = self._with_episodes(self.characters)
-            s += ' as ' + ', '.join(with_episodes)
-        elif self.jobs:
-            with_episodes = self._with_episodes(self.jobs)
-            s += ' ... ' + ', '.join(with_episodes)
+            s += ' \U0001F4FA '  # 📺
         return s
 
     def _person_string(self):
-        return 'test'
+        if self.gender == 1:
+            s = '\U00002640 '  # ♀️
+        elif self.gender == 2:
+            s = '\U00002642 '  # ♂️
+        elif self.gender == 3:
+            s = '\U000026A7 '  # ⚧
+        else:
+            s = '\U00002754 '  # ❔
+        return s
 
 
 class Image:
@@ -258,6 +269,8 @@ class TmdbClient:
         objectified_credits = []
         for credit_type in ['cast', 'crew']:
             for credit in combined_credits[credit_type]:
+                if credit_type == 'cast':
+                    credit['department'] = 'Acting'
                 try:
                     episode_count = credit.pop('episode_count')
                 except KeyError:
@@ -273,7 +286,6 @@ class TmdbClient:
                         attr = 'jobs'
                         credited_for = credit['job']
                     else:
-                        obj.department = 'Acting'
                         attr = 'characters'
                         credited_for = credit['character']
                     if obj in objectified_credits:

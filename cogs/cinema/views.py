@@ -114,115 +114,23 @@ class PersonView(discord.ui.View):
         await interaction.response.edit_message(view=view, embed=embed)
 
 
-class PersonPaginatingSubview(PaginatingView):
-    """View that expands PaginatingView with a button returning the user to the previous view."""
-
-    def __init__(self, parent_view: PersonView, pages: list | dict[str, list],
-                 embed_constructor: Callable[..., discord.Embed]):
-        super().__init__(pages, embed_constructor)
-        self.parent_view = parent_view
-        # We rearrange view.children to put the return button on the left.
-        children = self.children
-        idx, return_button = discord.utils.find(lambda x: x[1].style == discord.ButtonStyle.red, enumerate(children))
-        children.pop(idx)
-        self.clear_items()
-        for child in [return_button] + children:
-            self.add_item(child)
-
-    @discord.ui.button(label='RETURN', style=discord.ButtonStyle.red, row=1)
-    async def return_to_main_view(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button that returns user to the person's main page."""
-        await interaction.response.edit_message(view=self.parent_view, embed=self.parent_view.main_embed())
-
-
-class PersonBiographySubview(PersonPaginatingSubview):
-    """Subview that displays the person's full biography."""
-
-    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
-        super().__init__(parent_view, pages, self.biography_embed)
-
-    def biography_embed(self, **kwargs) -> discord.Embed:
-        """Creates the biography display embed."""
-        index: int = kwargs.get('index', 0)
-        embed = discord.Embed(title=self.parent_view.person.name,
-                              description=self.pages[index],
-                              url=self.parent_view.person.web_url,
-                              color=COLOR_EMBED_DARK)
-        embed.set_author(name='FULL BIO')
-        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
-        return embed
-
-
-class PersonImageSubview(PersonPaginatingSubview):
-    """Subview that displays the person's image gallery."""
-
-    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
-        super().__init__(parent_view, pages, self.images_embed)
-
-    def images_embed(self, **kwargs) -> discord.Embed:
-        """Creates the image display embed."""
-        index: int = kwargs.get('index', 0)
-        embed = discord.Embed(title=self.parent_view.person.name,
-                              url=self.parent_view.person.web_url,
-                              color=COLOR_EMBED_DARK)
-        embed.set_image(url=self.pages[index])
-        embed.set_author(name='PICTURES')
-        embed.set_footer(text=f'Picture {index + 1}/{self.page_count}')
-        return embed
-
-
-class PersonCreditsSubview(PersonPaginatingSubview):
-    """Subview that displays the person's credits."""
-
-    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
-        super().__init__(parent_view, pages, self.credits_embed)
-        self.page_count = len(self.pages[self.parent_view.person.known_for_department])
-        for department in self.pages.keys():
-            if department == self.parent_view.person.known_for_department:
-                self.department.append_option(discord.SelectOption(label=department, default=True))
-            else:
-                self.department.append_option(discord.SelectOption(label=department))
-        if self.page_count == 1:
-            self.next_page.disabled = True
-        else:
-            self.next_page.disabled = False
-
-    def credits_embed(self, **kwargs) -> discord.Embed:
-        """Creates the credits display embed."""
-        category: str = kwargs.get('category', self.parent_view.person.known_for_department)
-        index: int = kwargs.get('index', 0)
-        embed = discord.Embed(title=self.parent_view.person.name,
-                              description=self.pages[category][index],
-                              url=self.parent_view.person.web_url,
-                              color=COLOR_EMBED_DARK)
-        embed.set_author(name='CREDITS')
-        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
-        return embed
-
-    @discord.ui.select(row=0)
-    async def department(self, interaction: discord.Interaction, select: discord.ui.Select):
-        """Menu that allows the user to choose the credits department."""
-        self.constructor_kwargs['category'] = select.values[0]
-        self.constructor_kwargs['index'] = 0
-        self.page_count = len(self.pages[self.constructor_kwargs['category']])
-        self.previous_page.disabled = True
-        if self.page_count == 1:
-            self.next_page.disabled = True
-        else:
-            self.next_page.disabled = False
-        for opt in select.options:
-            opt.default = False
-        selected_option = discord.utils.get(select.options, value=select.values[0])
-        selected_option.default = True
-        return await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs),
-                                                       view=self)
-
-
 class ProductionView(discord.ui.View):
     def __init__(self, production: Production, client: TmdbClient):
         super().__init__()
         self.production = production
         self.client = client
+        if self.production.credits:
+            self.credits.disabled = False
+
+    def _paginate_credits(self, credits_per_page: int = 20) -> dict[str, list[str]]:
+        """Turns credits into strings for display and splits them into lists of pages for every category."""
+        pages = collections.defaultdict(list)
+        for credit in sorted(self.production.credits):
+            pages[credit.department].append(credit)
+        for department, dep_credits in pages.items():
+            pages[department] = ['\n'.join(str(credit) for credit in dep_credits[x:x + credits_per_page]) for x in
+                                 range(0, len(dep_credits), credits_per_page)]
+        return pages
 
     def _embed_description(self):
         if self.production.tagline:
@@ -255,6 +163,14 @@ class ProductionView(discord.ui.View):
         embed.add_field(name='User score', value=self.production.pretty_score())
         embed.set_footer(text=', '.join(self.production.keywords))
         return embed
+
+    @discord.ui.button(label='CREDITS', style=discord.ButtonStyle.gray, disabled=True)
+    async def credits(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays complete credits when pressed."""
+        pages = self._paginate_credits()
+        view = ProductionCreditsSubview(self, pages)
+        embed = view.credits_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
 
 
 class MovieView(ProductionView):
@@ -289,4 +205,150 @@ class TvView(ProductionView):
         embed.add_field(name='Last aired', value=verbose_date(self.tv.last_air_date) if self.tv.last_air_date else '-')
         if self.tv.created_by:
             embed.set_author(name='Created by ' + ', '.join([person.name for person in self.tv.created_by]))
+        return embed
+
+
+class PaginatingSubview(PaginatingView):
+    """View that expands PaginatingView with a button returning the user to the previous view."""
+
+    def __init__(self, parent_view: PersonView | ProductionView, pages: list | dict[str, list],
+                 embed_constructor: Callable[..., discord.Embed]):
+        super().__init__(pages, embed_constructor)
+        self.parent_view = parent_view
+        # We rearrange view.children to put the return button on the left.
+        children = self.children
+        idx, return_button = discord.utils.find(lambda x: x[1].style == discord.ButtonStyle.red, enumerate(children))
+        children.pop(idx)
+        self.clear_items()
+        for child in [return_button] + children:
+            self.add_item(child)
+
+    @discord.ui.button(label='RETURN', style=discord.ButtonStyle.red, row=1)
+    async def return_to_main_view(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that returns user to the person's main page."""
+        await interaction.response.edit_message(view=self.parent_view, embed=self.parent_view.main_embed())
+
+
+class PersonBiographySubview(PaginatingSubview):
+    """Subview that displays the person's full biography."""
+
+    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
+        super().__init__(parent_view, pages, self.biography_embed)
+
+    def biography_embed(self, **kwargs) -> discord.Embed:
+        """Creates the biography display embed."""
+        index: int = kwargs.get('index', 0)
+        embed = discord.Embed(title=self.parent_view.person.name,
+                              description=self.pages[index],
+                              url=self.parent_view.person.web_url,
+                              color=COLOR_EMBED_DARK)
+        embed.set_author(name='FULL BIO')
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
+        return embed
+
+
+class PersonImageSubview(PaginatingSubview):
+    """Subview that displays the person's image gallery."""
+
+    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
+        super().__init__(parent_view, pages, self.images_embed)
+
+    def images_embed(self, **kwargs) -> discord.Embed:
+        """Creates the image display embed."""
+        index: int = kwargs.get('index', 0)
+        embed = discord.Embed(title=self.parent_view.person.name,
+                              url=self.parent_view.person.web_url,
+                              color=COLOR_EMBED_DARK)
+        embed.set_image(url=self.pages[index])
+        embed.set_author(name='PICTURES')
+        embed.set_footer(text=f'Picture {index + 1}/{self.page_count}')
+        return embed
+
+
+class CreditsSubview(PaginatingSubview):
+    def __init__(self, parent_view: PersonView | ProductionView, pages: list | dict[str, list]):
+        super().__init__(parent_view, pages, self.credits_embed)
+
+    def credits_embed(self, **kwargs) -> discord.Embed:
+        raise NotImplementedError
+
+    @discord.ui.select(row=0)
+    async def department(self, interaction: discord.Interaction, select: discord.ui.Select):
+        """Menu that allows the user to choose the credits department."""
+        self.constructor_kwargs['category'] = select.values[0]
+        self.constructor_kwargs['index'] = 0
+        self.page_count = len(self.pages[self.constructor_kwargs['category']])
+        self.previous_page.disabled = True
+        if self.page_count == 1:
+            self.next_page.disabled = True
+        else:
+            self.next_page.disabled = False
+        for opt in select.options:
+            opt.default = False
+        selected_option = discord.utils.get(select.options, value=select.values[0])
+        selected_option.default = True
+        return await interaction.response.edit_message(embed=self.embed_constructor(**self.constructor_kwargs),
+                                                       view=self)
+
+
+class PersonCreditsSubview(CreditsSubview):
+    """Subview that displays the person's credits."""
+
+    def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
+        super().__init__(parent_view, pages)
+        self.page_count = len(self.pages[self.parent_view.person.known_for_department])
+        for department in self.pages.keys():
+            if department == self.parent_view.person.known_for_department:
+                self.department.append_option(discord.SelectOption(label=department, default=True))
+            else:
+                self.department.append_option(discord.SelectOption(label=department))
+        if self.page_count == 1:
+            self.next_page.disabled = True
+        else:
+            self.next_page.disabled = False
+
+    def credits_embed(self, **kwargs) -> discord.Embed:
+        """Creates the credits display embed."""
+        category: str = kwargs.get('category', self.parent_view.person.known_for_department)
+        index: int = kwargs.get('index', 0)
+        embed = discord.Embed(title=self.parent_view.person.name,
+                              description=self.pages[category][index],
+                              url=self.parent_view.person.web_url,
+                              color=COLOR_EMBED_DARK)
+        embed.set_author(name='CREDITS')
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
+        return embed
+
+
+class ProductionCreditsSubview(CreditsSubview):
+    """Subview that displays the production's credits."""
+
+    def __init__(self, parent_view: ProductionView, pages: list | dict[str, list]):
+        super().__init__(parent_view, pages)
+        self.main_page = 'Acting'
+        self.page_count = len(self.pages[self.main_page])
+        if self.page_count == 0:
+            self.pages.pop('Acting')
+            self.main_page = sorted(self.pages, key=lambda x: len(self.pages[x]))[0]
+            self.page_count = len(self.pages[self.main_page])
+        for department in self.pages.keys():
+            if department == self.main_page:
+                self.department.append_option(discord.SelectOption(label=department, default=True))
+            else:
+                self.department.append_option(discord.SelectOption(label=department))
+        if self.page_count == 1:
+            self.next_page.disabled = True
+        else:
+            self.next_page.disabled = False
+
+    def credits_embed(self, **kwargs) -> discord.Embed:
+        """Creates the credits display embed."""
+        category: str = kwargs.get('category', self.main_page)
+        index: int = kwargs.get('index', 0)
+        embed = discord.Embed(title=self.parent_view.production.title,
+                              description=self.pages[category][index],
+                              url=self.parent_view.production.web_url,
+                              color=COLOR_EMBED_DARK)
+        embed.set_author(name='CREDITS')
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
         return embed
