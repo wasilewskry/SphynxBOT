@@ -7,6 +7,10 @@ from utils.misc import get_as_json
 from utils.misc import strptime, calculate_age
 
 
+class TmdbApiException(Exception):
+    pass
+
+
 class ImageConfiguration:
     """Stores information needed to construct image urls."""
 
@@ -258,6 +262,9 @@ class TmdbClient:
         url = f'{self.base_api_url}{endpoint}?api_key={self.api_key}'
         for k, v in kwargs.items():
             url += f'&{k}={v}'
+        response = await get_as_json(url)
+        if type(response) == dict and response.get('status_code') == 34:
+            raise TmdbApiException(response)
         return await get_as_json(url)
 
     @alru_cache(maxsize=1)

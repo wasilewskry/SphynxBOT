@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from run import Sphynx
 from .helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices, CinemaEntity
-from .models import TmdbClient
+from .models import TmdbClient, TmdbApiException
 from .views import PersonView, MovieView, TvView, SimplePersonPagingView, MoviePagingView, TvPagingView
 
 
@@ -19,7 +19,11 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.describe(movie_id='Name of the movie you want to look up')
     async def movie(self, interaction: discord.Interaction, movie_id: int):
         """Displays movie details."""
-        movie = await self.tmdb_client.get_movie(movie_id)
+        try:
+            movie = await self.tmdb_client.get_movie(movie_id)
+        except TmdbApiException:
+            await interaction.response.send_message('Invalid choice.', ephemeral=True)
+            return
         view = MovieView(movie, self.tmdb_client)
         embed = view.main_embed()
         await interaction.response.send_message(view=view, embed=embed)
@@ -38,7 +42,11 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.describe(tv_id='Name of the show you want to look up')
     async def tv(self, interaction: discord.Interaction, tv_id: int):
         """Displays tv details."""
-        tv = await self.tmdb_client.get_tv(tv_id)
+        try:
+            tv = await self.tmdb_client.get_tv(tv_id)
+        except TmdbApiException:
+            await interaction.response.send_message('Invalid choice.', ephemeral=True)
+            return
         view = TvView(tv, self.tmdb_client)
         embed = view.main_embed()
         await interaction.response.send_message(view=view, embed=embed)
@@ -57,7 +65,11 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
     @app_commands.describe(person_id='Name of the person you want to look up')
     async def person(self, interaction: discord.Interaction, person_id: int):
         """Displays personal details."""
-        person = await self.tmdb_client.get_person(person_id)
+        try:
+            person = await self.tmdb_client.get_person(person_id)
+        except TmdbApiException:
+            await interaction.response.send_message('Invalid choice.', ephemeral=True)
+            return
         view = PersonView(person, self.tmdb_client)
         embed = view.main_embed()
         await interaction.response.send_message(view=view, embed=embed)
