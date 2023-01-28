@@ -140,6 +140,7 @@ class Person:
         self.id: int = kwargs.get('id')
         self.imdb_id: str = kwargs.get('imdb_id')
         self.known_for_department: str = kwargs.get('known_for_department')
+        self.known_for: list[Production] = kwargs.get('known_for', [])
         self.name: str = kwargs.get('name')
         self.place_of_birth: str = kwargs.get('place_of_birth')
         self.popularity: float = kwargs.get('popularity')
@@ -173,6 +174,7 @@ class Production:
         self.popularity: float = kwargs.get('popularity')
         self.tagline: str = kwargs.get('tagline')
         self.genres: list[str] = kwargs.get('genres')
+        self.genre_ids: list[int] = kwargs.get('genre_ids')
         self.homepage: str = kwargs.get('homepage')
         self.status: str = kwargs.get('status')
         self.vote_average: float = kwargs.get('vote_average')
@@ -181,10 +183,12 @@ class Production:
         self.images: list[Image] = kwargs.get('images')
         self.external_ids: ExternalIds = kwargs.get('external_ids')
         self.keywords: list[str] = kwargs.get('keywords')
-        self.credits: list[Credit] = kwargs.get('credits')
+        self.credits: list[Credit] = kwargs.get('credits', [])
         # self.production_companies: ??? = kwargs.get('production_companies')
         # self.production_countries: ??? = kwargs.get('production_countries')
         self.web_url = f'{TmdbClient.base_web_url}/{self.media_type}/{self.id}'
+        self.similar: list[Production] = kwargs.get('similar')
+        self.recommendations: list[Production] = kwargs.get('recommendations')
 
     def pretty_score(self):
         return f'{int(self.vote_average * 10)}%'
@@ -246,6 +250,8 @@ class TmdbClient:
         self.api_key = api_key
         self.img_config: ImageConfiguration | None = None
         self.language_config: dict[str, str] = {}
+        self.movie_genres: dict[int, str] = {}
+        self.tv_genres: dict[int, str] = {}
 
     async def _get(self, endpoint: str, **kwargs):
         """Creates a request to a given endpoint. Accepts query parameters as keyword arguments."""
@@ -263,6 +269,12 @@ class TmdbClient:
         parsed = await self._get('/configuration/languages')
         for conf in parsed:
             self.language_config[conf['iso_639_1']] = conf['english_name']
+        parsed = await self._get('/genre/movie/list')
+        for genre in parsed['genres']:
+            self.movie_genres[genre['id']] = genre['name']
+        parsed = await self._get('/genre/tv/list')
+        for genre in parsed['genres']:
+            self.tv_genres[genre['id']] = genre['name']
 
     def _process_credits(self, combined_credits: dict[str, list[dict]]) -> list[Credit]:
         # TODO: Rewrite this entire method
@@ -344,6 +356,8 @@ class TmdbClient:
         parsed = self._prepare_production(parsed)
         parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['keywords']]
         parsed['credits'] = self._process_credits(parsed['credits'])
+        parsed['similar'] = [Movie(**kwargs) for kwargs in parsed['similar']['results']]
+        parsed['recommendations'] = [Movie(**kwargs) for kwargs in parsed['recommendations']['results']]
         return Movie(**parsed)
 
     async def get_tv(self, tv_id: int) -> Tv:
@@ -356,7 +370,27 @@ class TmdbClient:
         parsed['networks'] = [network['name'] for network in parsed['networks']]
         parsed['keywords'] = [keyword['name'] for keyword in parsed['keywords']['results']]
         parsed['credits'] = self._process_credits(parsed['aggregate_credits'])
+        parsed['similar'] = [Tv(**kwargs) for kwargs in parsed['similar']['results']]
+        parsed['recommendations'] = [Tv(**kwargs) for kwargs in parsed['recommendations']['results']]
         return Tv(**parsed)
+
+    async def get_popular_people(self):
+        parsed = await self._get(f'/person/popular')
+        parsed = parsed['results']
+        for person in parsed:
+            person['known_for'] = [Tv(**kwargs) if kwargs['media_type'] == 'tv' else Movie(**kwargs)
+                                   for kwargs in person['known_for']]
+        return [Person(**kwargs) for kwargs in parsed]
+
+    async def get_popular_movies(self):
+        parsed = await self._get(f'/movie/popular')
+        parsed = parsed['results']
+        return [Movie(**kwargs) for kwargs in parsed]
+
+    async def get_popular_tv(self):
+        parsed = await self._get(f'/tv/popular')
+        parsed = parsed['results']
+        return [Tv(**kwargs) for kwargs in parsed]
 
     async def query_person(self, query: str) -> list[Person]:
         """GET request used to search for people based on user query."""

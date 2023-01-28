@@ -139,10 +139,11 @@ class ProductionView(discord.ui.View):
             return self.production.overview
 
     def _embed_title(self):
+        title = self.production.title.replace('*', r'\*')
         if self.production.release_date:
-            return f'{self.production.title} ({self.production.release_date.year})'
+            return f'{title} ({self.production.release_date.year})'
         else:
-            return self.production.title
+            return title
 
     def _base_embed(self) -> discord.Embed:
         embed = discord.Embed(title=self._embed_title(),
@@ -161,7 +162,8 @@ class ProductionView(discord.ui.View):
                         inline=False)
         embed.add_field(name='Status', value=self.production.status if self.production.status else '-')
         embed.add_field(name='User score', value=self.production.pretty_score())
-        embed.set_footer(text=', '.join(self.production.keywords))
+        if keywords := self.production.keywords:
+            embed.set_footer(text=', '.join(keywords))
         return embed
 
     @discord.ui.button(label='CREDITS', style=discord.ButtonStyle.gray, disabled=True)
@@ -177,6 +179,10 @@ class MovieView(ProductionView):
     def __init__(self, movie: Movie, client: TmdbClient):
         super().__init__(movie, client)
         self.movie = movie
+        if self.movie.similar:
+            self.similar.disabled = False
+        if self.movie.recommendations:
+            self.recommendations.disabled = False
 
     def main_embed(self) -> discord.Embed:
         """Returns the embed used for displaying the movie's primary information."""
@@ -190,11 +196,31 @@ class MovieView(ProductionView):
             embed.set_author(name='Directed by ' + ', '.join([director for director in directors]))
         return embed
 
+    @discord.ui.button(label='SIMILAR', style=discord.ButtonStyle.gray, disabled=True)
+    async def similar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays similar movies when pressed."""
+        pages = [movie for movie in self.movie.similar]
+        view = MovieSimilarView(self, pages, self.client)
+        embed = view.movie_list_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
+    @discord.ui.button(label='RECOMMENDATIONS', style=discord.ButtonStyle.gray, disabled=True)
+    async def recommendations(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays movie recommendations when pressed."""
+        pages = [movie for movie in self.movie.recommendations]
+        view = MovieRecommendationView(self, pages, self.client)
+        embed = view.movie_list_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
 
 class TvView(ProductionView):
     def __init__(self, tv: Tv, client: TmdbClient):
         super().__init__(tv, client)
         self.tv = tv
+        if self.tv.similar:
+            self.similar.disabled = False
+        if self.tv.recommendations:
+            self.recommendations.disabled = False
 
     def main_embed(self) -> discord.Embed:
         """Returns the embed used for displaying the movie's primary information."""
@@ -207,11 +233,29 @@ class TvView(ProductionView):
             embed.set_author(name='Created by ' + ', '.join([person.name for person in self.tv.created_by]))
         return embed
 
+    @discord.ui.button(label='SIMILAR', style=discord.ButtonStyle.gray, disabled=True)
+    async def similar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays similar shows when pressed."""
+        pages = [tv for tv in self.tv.similar]
+        view = TvSimilarView(self, pages, self.client)
+        embed = view.tv_list_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
 
-class PaginatingSubview(PaginatingView):
+    @discord.ui.button(label='RECOMMENDATIONS', style=discord.ButtonStyle.gray, disabled=True)
+    async def recommendations(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button that displays show recommendations when pressed."""
+        pages = [tv for tv in self.tv.recommendations]
+        view = TvRecommendationView(self, pages, self.client)
+        embed = view.tv_list_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
+
+class PaginatingWithReturnView(PaginatingView):
     """View that expands PaginatingView with a button returning the user to the previous view."""
 
-    def __init__(self, parent_view: PersonView | ProductionView, pages: list | dict[str, list],
+    def __init__(self,
+                 parent_view: PersonView | ProductionView,
+                 pages: list | dict[str, list],
                  embed_constructor: Callable[..., discord.Embed]):
         super().__init__(pages, embed_constructor)
         self.parent_view = parent_view
@@ -229,7 +273,7 @@ class PaginatingSubview(PaginatingView):
         await interaction.response.edit_message(view=self.parent_view, embed=self.parent_view.main_embed())
 
 
-class PersonBiographySubview(PaginatingSubview):
+class PersonBiographySubview(PaginatingWithReturnView):
     """Subview that displays the person's full biography."""
 
     def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
@@ -247,7 +291,7 @@ class PersonBiographySubview(PaginatingSubview):
         return embed
 
 
-class PersonImageSubview(PaginatingSubview):
+class PersonImageSubview(PaginatingWithReturnView):
     """Subview that displays the person's image gallery."""
 
     def __init__(self, parent_view: PersonView, pages: list | dict[str, list]):
@@ -265,7 +309,7 @@ class PersonImageSubview(PaginatingSubview):
         return embed
 
 
-class CreditsSubview(PaginatingSubview):
+class CreditsSubview(PaginatingWithReturnView):
     def __init__(self, parent_view: PersonView | ProductionView, pages: list | dict[str, list]):
         super().__init__(parent_view, pages, self.credits_embed)
 
@@ -352,3 +396,123 @@ class ProductionCreditsSubview(CreditsSubview):
         embed.set_author(name='CREDITS')
         embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
         return embed
+
+
+class MoviePagingView(PaginatingView):
+    def __init__(self, pages: list[Production], client: TmdbClient):
+        super().__init__(pages, self.movie_list_embed)
+        self.headline = None
+        self.client = client
+        self.selected = self.pages[0]
+
+    def movie_list_embed(self, **kwargs) -> discord.Embed:
+        index: int = kwargs.get('index', 0)
+        self.selected = self.pages[index]
+        self.selected.genres = [self.client.movie_genres[genre_id] for genre_id in self.selected.genre_ids]
+        embed = MovieView(self.selected, self.client).main_embed()
+        if self.headline:
+            embed.set_author(name=self.headline)
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
+        embed.remove_field(6).remove_field(5).remove_field(3).remove_field(1)
+        return embed
+
+    @discord.ui.button(label='MORE', style=discord.ButtonStyle.blurple, row=1)
+    async def more(self, interaction: discord.Interaction, button: discord.ui.Button):
+        movie = await self.client.get_movie(self.selected.id)
+        view = MovieView(movie, self.client)
+        embed = view.main_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
+
+class TvPagingView(PaginatingView):
+    def __init__(self, pages: list[Production], client: TmdbClient):
+        super().__init__(pages, self.tv_list_embed)
+        self.headline = None
+        self.client = client
+        self.selected = self.pages[0]
+
+    def tv_list_embed(self, **kwargs) -> discord.Embed:
+        index: int = kwargs.get('index', 0)
+        self.selected = self.pages[index]
+        self.selected.genres = [self.client.tv_genres[genre_id] for genre_id in self.selected.genre_ids]
+        embed = TvView(self.selected, self.client).main_embed()
+        if self.headline:
+            embed.set_author(name=self.headline)
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
+        embed.remove_field(6).remove_field(4).remove_field(3).remove_field(1)
+        return embed
+
+    @discord.ui.button(label='MORE', style=discord.ButtonStyle.blurple, row=1)
+    async def more(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tv = await self.client.get_tv(self.selected.id)
+        view = TvView(tv, self.client)
+        embed = view.main_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
+
+class SimplePersonPagingView(PaginatingView):
+    def __init__(self, pages: list[Person], client: TmdbClient):
+        super().__init__(pages, self.person_list_embed)
+        self.client = client
+        self.selected = self.pages[0]
+
+    def person_list_embed(self, **kwargs) -> discord.Embed:
+        index: int = kwargs.get('index', 0)
+        self.selected = self.pages[index]
+        desc = f"**Known for: {self.selected.known_for_department if self.selected.known_for_department else '-'}**"
+        known_for = '\n'.join(
+            [f'[{p.title} ({p.release_date.year})]({p.web_url})' for p in self.selected.known_for])
+        desc += '\n' + known_for
+        embed = discord.Embed(title=self.selected.name,
+                              description=desc,
+                              url=self.selected.web_url,
+                              color=COLOR_EMBED_DARK)
+        img_config = self.client.img_config
+        if self.selected.profile_path:
+            url = img_config.secure_base_url + img_config.profile_sizes[-1] + self.selected.profile_path
+            embed.set_image(url=url)
+        embed.set_footer(text=f'Page {index + 1}/{self.page_count}')
+        return embed
+
+    @discord.ui.button(label='MORE', style=discord.ButtonStyle.blurple, row=1)
+    async def more(self, interaction: discord.Interaction, button: discord.ui.Button):
+        person = await self.client.get_person(self.selected.id)
+        view = PersonView(person, self.client)
+        embed = view.main_embed()
+        await interaction.response.edit_message(view=view, embed=embed)
+
+
+class TvPagingWithReturnView(PaginatingWithReturnView, TvPagingView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, TvPagingView.tv_list_embed)
+        self.client = client
+
+
+class TvRecommendationView(TvPagingWithReturnView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, client)
+        self.headline = f'Recommendations: {self.parent_view.production.title}'
+
+
+class TvSimilarView(TvPagingWithReturnView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, client)
+        self.headline = f'Similar to {self.parent_view.production.title}'
+
+
+class MoviePagingWithReturnView(PaginatingWithReturnView, MoviePagingView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, MoviePagingView.movie_list_embed)
+        self.client = client
+
+
+class MovieRecommendationView(MoviePagingWithReturnView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, client)
+        self.headline = f'Recommendations: {self.parent_view.production.title}'
+
+
+class MovieSimilarView(MoviePagingWithReturnView):
+    def __init__(self, parent_view: ProductionView, pages: list[Production], client: TmdbClient):
+        super().__init__(parent_view, pages, client)
+        self.headline = f'Similar to {self.parent_view.production.title}'

@@ -4,9 +4,9 @@ from discord.app_commands import Choice
 from discord.ext import commands
 
 from run import Sphynx
-from .helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices
+from .helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices, CinemaEntity
 from .models import TmdbClient
-from .views import PersonView, MovieView, TvView
+from .views import PersonView, MovieView, TvView, SimplePersonPagingView, MoviePagingView, TvPagingView
 
 
 class CinemaCog(commands.GroupCog, group_name='cinema'):
@@ -72,3 +72,23 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         choices = [app_commands.Choice(name=f'{c.name}', value=c.id) for c in candidates]
         choices = deduplicate_autocomplete_labels(choices)
         return choices[:25]
+
+    @app_commands.command()
+    @app_commands.describe(entity='Type of currently popular cinema-related object you want to list')
+    async def popular(self, interaction: discord.Interaction, entity: CinemaEntity):
+        """Displays currently popular entities."""
+        if entity == CinemaEntity.person:
+            people = await self.tmdb_client.get_popular_people()
+            view = SimplePersonPagingView(people, self.tmdb_client)
+            embed = view.person_list_embed()
+            await interaction.response.send_message(view=view, embed=embed)
+        elif entity == CinemaEntity.movie:
+            movies = await self.tmdb_client.get_popular_movies()
+            view = MoviePagingView(movies, self.tmdb_client)
+            embed = view.movie_list_embed()
+            await interaction.response.send_message(view=view, embed=embed)
+        else:
+            tv = await self.tmdb_client.get_popular_tv()
+            view = TvPagingView(tv, self.tmdb_client)
+            embed = view.tv_list_embed()
+            await interaction.response.send_message(view=view, embed=embed)

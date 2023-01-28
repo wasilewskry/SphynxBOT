@@ -1,9 +1,16 @@
 import collections
 import datetime as dt
+from enum import Enum, auto
 
 from discord import app_commands
 
 from .models import Production
+
+
+class CinemaEntity(Enum):
+    person = auto()
+    movie = auto()
+    tv = auto()
 
 
 def deduplicate_autocomplete_labels(choices: list[app_commands.Choice]):
