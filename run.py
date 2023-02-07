@@ -1,7 +1,10 @@
+from glob import glob
+
 import discord
 from discord.ext import commands
+from tortoise import Tortoise
 
-from config import token
+from config import token, db_url
 
 
 class Sphynx(commands.Bot):
@@ -12,11 +15,17 @@ class Sphynx(commands.Bot):
         self.initial_extensions = [
             'cogs.owner',
             'cogs.unit',
-            'cogs.reminder_old',
+            'cogs.reminder',
             'cogs.cinema'
         ]
 
     async def setup_hook(self):
+        models = ['cogs.shared_models']
+        models += [path.replace('.py', '').replace('\\', '/').replace('/', '.') for path in glob('cogs/*/models.py')]
+        await Tortoise.init(
+            db_url=db_url,
+            modules={'models': models})
+        await Tortoise.generate_schemas()
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
