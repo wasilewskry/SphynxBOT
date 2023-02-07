@@ -3,6 +3,30 @@ from collections.abc import Callable
 import discord
 
 
+class SphynxView(discord.ui.View):
+    """Base view that all other views used by the bot should inherit from."""
+
+    def __init__(self, interaction: discord.Interaction, *, author: discord.User = None):
+        super().__init__(timeout=120)
+        self.latest_interaction = interaction
+        self.author = author
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if not self.author or interaction.user == self.author:
+            self.latest_interaction = interaction
+            return True
+        else:
+            return False
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.latest_interaction.edit_original_response(view=self)
+
+    async def embed(self):
+        raise NotImplementedError()
+
+
 class PaginatingView(discord.ui.View):
     """Simple pagination view with buttons to show next or previous page."""
 
