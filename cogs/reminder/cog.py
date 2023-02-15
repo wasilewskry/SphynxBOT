@@ -150,7 +150,7 @@ class ReminderCog(commands.GroupCog, group_name='reminder'):
         if not reminders:
             await interaction.response.send_message("No reminders set right now.", ephemeral=True)
         else:
-            view = ReminderView(reminders)
+            view = ReminderView(interaction, reminders, interaction.user)
             embed = view.embed()
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
@@ -174,10 +174,10 @@ class ReminderCog(commands.GroupCog, group_name='reminder'):
         await discord.utils.sleep_until(next_reminder.target_time)
         reminder = f"<@{next_reminder.user_id}>\n{next_reminder.description}"
         if next_reminder.channel_id:
-            channel = self.bot.get_channel(next_reminder.channel_id)
+            channel = await self.bot.maybe_fetch_channel(next_reminder.channel_id)
             await channel.send(reminder)
         else:
-            user = await self.bot.fetch_user(next_reminder.user_id)
+            user = await self.bot.maybe_fetch_user(next_reminder.user_id)
             if await dm_open(user):
                 await user.send(reminder)
         if next_reminder.reminder_type.value == next_reminder.reminder_type.daily:
