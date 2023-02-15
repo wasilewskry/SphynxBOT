@@ -1,3 +1,4 @@
 discord
 tzdata
-git+https://github.com/Rapptz/asqlite
+async-lru
+tortoise-orm[asyncpg]

@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:alpine
+    container_name: db
+    environment:
+      POSTGRES_USER: sphynxbot
+      POSTGRES_PASSWORD_FILE: /run/secrets/sphynxbot_db_password
+      POSTGRES_DB: sphynxbot
+    ports:
+      - 32323:5432
+    volumes:
+      - data:/var/lib/postgresql/data
+    secrets:
+      - sphynxbot_db_password
+#  bot:
+#    depends_on:
+#      - db
+#    build: .
+#    image: sphynxbot
+#    container_name: bot
+#    secrets:
+#      - sphynxbot_db_password
+
+volumes:
+  data:
+
+secrets:
+  sphynxbot_db_password:
+    file: credentials/sphynxbot_db_password
