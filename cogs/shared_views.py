@@ -4,13 +4,14 @@ import discord
 class SphynxView(discord.ui.View):
     """Base view that all other views used by the bot should inherit from."""
 
-    def __init__(self, interaction: discord.Interaction, *, author: discord.User = None, timeout: int = 120, **kwargs):
+    def __init__(self, interaction: discord.Interaction, *, public: bool = False, timeout: int = 120, **kwargs):
         super().__init__(timeout=timeout)
         self.latest_interaction = interaction
-        self.author = author
+        self.public = public
+        self.owner = interaction.user
 
     async def interaction_check(self, interaction: discord.Interaction):
-        if not self.author or interaction.user == self.author:
+        if self.public or interaction.user == self.owner:
             self.latest_interaction = interaction
             return True
         else:

@@ -10,9 +10,9 @@ class ReminderView(PaginatingView):
             self,
             interaction: discord.Interaction,
             reminders: list[Reminder],
-            author: discord.User
+            **kwargs,
     ):
-        super().__init__(interaction, reminders, author=author)
+        super().__init__(interaction, reminders, **kwargs)
 
     def embed(self) -> discord.Embed:
         reminder = self.pages[self.page_index]

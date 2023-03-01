@@ -99,7 +99,7 @@ class PersonView(SphynxView):
     async def biography(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays full biography when pressed."""
         pages = self._paginate_bio()
-        view = PersonBiographyView(interaction, pages, self, author=interaction.user)
+        view = PersonBiographyView(interaction, pages, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -109,7 +109,7 @@ class PersonView(SphynxView):
         img_config = self.client.img_config
         pages = [
             img_config.secure_base_url + img_config.profile_sizes[-1] + img.file_path for img in self.person.images]
-        view = PersonImageView(interaction, pages, self, author=interaction.user)
+        view = PersonImageView(interaction, pages, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -117,7 +117,7 @@ class PersonView(SphynxView):
     async def credits(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays complete credits when pressed."""
         pages = self._paginate_credits()
-        view = PersonCreditsView(interaction, pages, self, author=interaction.user)
+        view = PersonCreditsView(interaction, pages, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -192,7 +192,7 @@ class ProductionView(SphynxView):
     async def credits(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays complete credits when pressed."""
         pages = self._paginate_credits()
-        view = ProductionCreditsView(interaction, pages, self, author=interaction.user)
+        view = ProductionCreditsView(interaction, pages, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -200,7 +200,7 @@ class ProductionView(SphynxView):
     async def similar(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays similar productions when pressed."""
         pages = [production for production in self.production.similar]
-        view = ProductionSimilarView(interaction, pages, self.client, self, author=interaction.user)
+        view = ProductionSimilarView(interaction, pages, self.client, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -208,7 +208,7 @@ class ProductionView(SphynxView):
     async def recommendations(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Button that displays recommendations when pressed."""
         pages = [production for production in self.production.recommendations]
-        view = ProductionRecommendationView(interaction, pages, self.client, self, author=interaction.user)
+        view = ProductionRecommendationView(interaction, pages, self.client, self)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 
@@ -458,10 +458,10 @@ class ProductionPaginatingView(PaginatingView):
         selected = self.pages[self.page_index]
         if isinstance(selected, Movie):
             production = await self.client.get_movie(selected.id)
-            view = MovieView(interaction, production, self.client, author=interaction.user)
+            view = MovieView(interaction, production, self.client)
         elif isinstance(selected, Tv):
             production = await self.client.get_tv(selected.id)
-            view = TvView(interaction, production, self.client, author=interaction.user)
+            view = TvView(interaction, production, self.client)
         else:
             raise RuntimeError('Object has to be an instance of Production.')
         embed = view.embed()
@@ -502,7 +502,7 @@ class PersonPaginatingView(PaginatingView):
     async def more(self, interaction: discord.Interaction, button: discord.ui.Button):
         selected = self.pages[self.page_index]
         person = await self.client.get_person(selected.id)
-        view = PersonView(interaction, person, self.client, author=interaction.user)
+        view = PersonView(interaction, person, self.client)
         embed = view.embed()
         await interaction.response.edit_message(view=view, embed=embed)
 

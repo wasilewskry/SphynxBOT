@@ -24,7 +24,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = MovieView(interaction, movie, self.tmdb_client, author=interaction.user)
+        view = MovieView(interaction, movie, self.tmdb_client)
         embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
@@ -47,7 +47,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = TvView(interaction, tv, self.tmdb_client, author=interaction.user)
+        view = TvView(interaction, tv, self.tmdb_client)
         embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
@@ -70,7 +70,7 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = PersonView(interaction, person, self.tmdb_client, author=interaction.user)
+        view = PersonView(interaction, person, self.tmdb_client)
         embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
@@ -91,12 +91,12 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         """Displays currently popular entities."""
         if entity == CinemaEntity.person:
             people = await self.tmdb_client.get_popular_people()
-            view = PersonPaginatingView(interaction, people, self.tmdb_client, author=interaction.user)
+            view = PersonPaginatingView(interaction, people, self.tmdb_client)
         elif entity == CinemaEntity.movie:
             productions = await self.tmdb_client.get_popular_movies()
-            view = ProductionPaginatingView(interaction, productions, self.tmdb_client, author=interaction.user)
+            view = ProductionPaginatingView(interaction, productions, self.tmdb_client)
         else:
             productions = await self.tmdb_client.get_popular_tv()
-            view = ProductionPaginatingView(interaction, productions, self.tmdb_client, author=interaction.user)
+            view = ProductionPaginatingView(interaction, productions, self.tmdb_client)
         embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
