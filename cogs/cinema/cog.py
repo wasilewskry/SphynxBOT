@@ -6,7 +6,7 @@ from discord.ext import commands
 from run import Sphynx
 from .helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices, CinemaEntity
 from .models import TmdbClient, TmdbApiException
-from .views import PersonView, MovieView, TvView, SimplePersonPagingView, MoviePagingView, TvPagingView
+from .views import PersonView, MovieView, TvView, PersonPaginatingView, ProductionPaginatingView
 
 
 class CinemaCog(commands.GroupCog, group_name='cinema'):
@@ -24,8 +24,8 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = MovieView(movie, self.tmdb_client)
-        embed = view.main_embed()
+        view = MovieView(interaction, movie, self.tmdb_client)
+        embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
     @movie.autocomplete('movie_id')
@@ -47,8 +47,8 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = TvView(tv, self.tmdb_client)
-        embed = view.main_embed()
+        view = TvView(interaction, tv, self.tmdb_client)
+        embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
     @tv.autocomplete('tv_id')
@@ -70,8 +70,8 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         except TmdbApiException:
             await interaction.response.send_message('Invalid choice.', ephemeral=True)
             return
-        view = PersonView(person, self.tmdb_client)
-        embed = view.main_embed()
+        view = PersonView(interaction, person, self.tmdb_client)
+        embed = view.embed()
         await interaction.response.send_message(view=view, embed=embed)
 
     @person.autocomplete('person_id')
@@ -91,16 +91,12 @@ class CinemaCog(commands.GroupCog, group_name='cinema'):
         """Displays currently popular entities."""
         if entity == CinemaEntity.person:
             people = await self.tmdb_client.get_popular_people()
-            view = SimplePersonPagingView(people, self.tmdb_client)
-            embed = view.person_list_embed()
-            await interaction.response.send_message(view=view, embed=embed)
+            view = PersonPaginatingView(interaction, people, self.tmdb_client)
         elif entity == CinemaEntity.movie:
-            movies = await self.tmdb_client.get_popular_movies()
-            view = MoviePagingView(movies, self.tmdb_client)
-            embed = view.movie_list_embed()
-            await interaction.response.send_message(view=view, embed=embed)
+            productions = await self.tmdb_client.get_popular_movies()
+            view = ProductionPaginatingView(interaction, productions, self.tmdb_client)
         else:
-            tv = await self.tmdb_client.get_popular_tv()
-            view = TvPagingView(tv, self.tmdb_client)
-            embed = view.tv_list_embed()
-            await interaction.response.send_message(view=view, embed=embed)
+            productions = await self.tmdb_client.get_popular_tv()
+            view = ProductionPaginatingView(interaction, productions, self.tmdb_client)
+        embed = view.embed()
+        await interaction.response.send_message(view=view, embed=embed)

@@ -1,18 +1,18 @@
 import discord
 
-from cogs.shared_views import NewPaginatingView
+from cogs.shared_views import PaginatingView
 from utils.constants import COLOR_EMBED_DARK
 from .models import Reminder
 
 
-class ReminderView(NewPaginatingView):
+class ReminderView(PaginatingView):
     def __init__(
             self,
             interaction: discord.Interaction,
             reminders: list[Reminder],
-            author: discord.User
+            **kwargs,
     ):
-        super().__init__(interaction, reminders, author=author)
+        super().__init__(interaction, reminders, **kwargs)
 
     def embed(self) -> discord.Embed:
         reminder = self.pages[self.page_index]

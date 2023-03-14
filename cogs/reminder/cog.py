@@ -150,7 +150,7 @@ class ReminderCog(commands.GroupCog, group_name='reminder'):
         if not reminders:
             await interaction.response.send_message("No reminders set right now.", ephemeral=True)
         else:
-            view = ReminderView(interaction, reminders, interaction.user)
+            view = ReminderView(interaction, reminders)
             embed = view.embed()
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
