@@ -1,8 +1,4 @@
 venv/
 .idea/
-credentials/
-
-*.db3
-*.db3-shm
-*.db3-wal
-config.py
+.pytest_cache/
+tests/.pytest_cache/
