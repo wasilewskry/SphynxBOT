@@ -2,3 +2,4 @@ discord
 tzdata
 async-lru
 tortoise-orm[asyncpg]
+pytest
