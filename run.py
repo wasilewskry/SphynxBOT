@@ -1,10 +1,9 @@
+import os
 from glob import glob
 
 import discord
 from discord.ext import commands
 from tortoise import Tortoise
-
-from config import token, db_url
 
 
 class Sphynx(commands.Bot):
@@ -19,11 +18,21 @@ class Sphynx(commands.Bot):
             'cogs.cinema'
         ]
 
+    def _build_db_url(self):
+        url = 'postgres://{user}:{password}@{host}:{port}/{db}'.format(
+            user=os.environ['SPHYNX_DB_USERNAME'],
+            password=os.environ['SPHYNX_DB_PASSWORD'],
+            host=os.environ['SPHYNX_DB_HOSTNAME'],
+            port=os.environ['SPHYNX_DB_PORT'],
+            db=os.environ['SPHYNX_DB_DBNAME'],
+        )
+        return url
+
     async def setup_hook(self):
         models = ['cogs.shared_models']
         models += [path.replace('.py', '').replace('\\', '/').replace('/', '.') for path in glob('cogs/*/models.py')]
         await Tortoise.init(
-            db_url=db_url,
+            db_url=self._build_db_url(),
             modules={'models': models})
         await Tortoise.generate_schemas()
         for ext in self.initial_extensions:
@@ -44,5 +53,6 @@ class Sphynx(commands.Bot):
 
 # -------------------------------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
+    token = os.environ['SPHYNX_TOKEN']
     sphynx = Sphynx()
     sphynx.run(token, root_logger=True)
