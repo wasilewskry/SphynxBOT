@@ -3,3 +3,5 @@ tzdata
 async-lru
 tortoise-orm[asyncpg]
 pytest
+pytest-asyncio
+pytest-mock
