@@ -1,6 +1,8 @@
+import datetime as dt
+
 from discord.app_commands import Choice
 
-from cogs.cinema.helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices
+from cogs.cinema.helpers import deduplicate_autocomplete_labels, prepare_production_autocomplete_choices, verbose_date
 from cogs.cinema.models import Production
 
 
@@ -60,3 +62,7 @@ class TestHelpers:
         ]
 
         assert prepare_production_autocomplete_choices(candidates) == expected
+
+    def test_verbose_date(self):
+        date = dt.date(year=2000, month=1, day=1)
+        assert verbose_date(date) == '01 January, 2000'
