@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:alpine
+    container_name: db
+    environment:
+      POSTGRES_USER: ${SPHYNX_DB_USERNAME}
+      POSTGRES_PASSWORD: ${SPHYNX_DB_PASSWORD}
+      POSTGRES_DB: ${SPHYNX_DB_DBNAME}
+    ports:
+      - ${SPHYNX_DB_PORT}:5432
+    volumes:
+      - data:/var/lib/postgresql/data
+#  bot:
+#    depends_on:
+#      - db
+#    build: .
+#    image: sphynxbot
+#    container_name: bot
+
+volumes:
+  data:
