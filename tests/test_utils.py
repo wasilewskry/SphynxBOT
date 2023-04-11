@@ -1,9 +1,6 @@
 import datetime as dt
-from unittest.mock import Mock
 
-import discord
 import pytest
-from discord import HTTPException
 
 from tests.conftest import MockException
 from utils.misc import trim_by_paragraph, next_datetime, calculate_age, get_timezones, strptime, get_as_json, dm_open
@@ -68,7 +65,7 @@ class TestCalculateAge:
 
 
 class TestGetTimezones:
-    # Some systems can return an empty list, we check for that
+    # Some systems can return an empty list, we check for that.
 
     def test_get_timezones(self):
         assert len(get_timezones()) > 0
