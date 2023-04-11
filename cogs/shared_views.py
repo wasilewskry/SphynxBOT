@@ -43,7 +43,7 @@ class PaginatingView(SphynxView):
             self.next_page.disabled = False
         self.parent_view = parent_view
         if not self.parent_view:
-            # Discord does not allow to explicitly set position of they button
+            # Discord does not allow to explicitly set the position of the button
             # New buttons appear in order of creation from left to right
             # In order to keep the return button on the left, we create it first and then remove it if it's unnecessary
             children = self.children
