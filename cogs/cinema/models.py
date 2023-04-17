@@ -259,6 +259,7 @@ class TmdbClient:
 
     async def _get(self, endpoint: str, **kwargs):
         """Creates a request to a given endpoint. Accepts query parameters as keyword arguments."""
+        # As of December 16, 2019, TMDB has disabled the API rate limiting.
         url = f'{self.base_api_url}{endpoint}?api_key={self.api_key}'
         for k, v in kwargs.items():
             url += f'&{k}={v}'
