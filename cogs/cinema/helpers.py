@@ -13,7 +13,7 @@ class CinemaEntity(Enum):
     tv = auto()
 
 
-def deduplicate_autocomplete_labels(choices: list[app_commands.Choice]):
+def deduplicate_autocomplete_labels(choices: list[app_commands.Choice]) -> list[app_commands.Choice]:
     dupes = collections.defaultdict(int)
     for c in choices:
         name = c.name
@@ -26,7 +26,7 @@ def deduplicate_autocomplete_labels(choices: list[app_commands.Choice]):
     return choices
 
 
-def prepare_production_autocomplete_choices(candidates: list[Production]):
+def prepare_production_autocomplete_choices(candidates: list[Production]) -> list[app_commands.Choice]:
     candidates = sorted(candidates, key=lambda x: x.popularity, reverse=True)
     for c in candidates:
         if c.release_date:
@@ -35,5 +35,5 @@ def prepare_production_autocomplete_choices(candidates: list[Production]):
     return deduplicate_autocomplete_labels(choices)
 
 
-def verbose_date(date: dt.datetime.date):
+def verbose_date(date: dt.datetime.date) -> str:
     return date.strftime('%d %B, %Y')
