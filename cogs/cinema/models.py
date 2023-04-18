@@ -69,7 +69,7 @@ class Credit:
             s += ' ... ' + ', '.join(with_episodes)
         return s
 
-    def _with_episodes(self, characters_or_jobs: list[str]):
+    def _with_episodes(self, characters_or_jobs: list[str]) -> list[str]:
         """Returns a list of character/job strings with the amount of episodes appended to them (if any)."""
         with_episodes = []
         for c_or_j in characters_or_jobs:
@@ -79,7 +79,7 @@ class Credit:
                 with_episodes.append(c_or_j)
         return with_episodes
 
-    def _production_string(self):
+    def _production_string(self) -> str:
         if self.release_date:
             s = f'``{self.release_date.year}``'
         else:
@@ -90,7 +90,7 @@ class Credit:
             s += ' \U0001F4FA '  # 📺
         return s
 
-    def _person_string(self):
+    def _person_string(self) -> str:
         if self.gender == 1:
             s = '\U00002640 '  # ♀️
         elif self.gender == 2:
@@ -194,7 +194,7 @@ class Production:
         self.similar: list[Production] = kwargs.get('similar')
         self.recommendations: list[Production] = kwargs.get('recommendations')
 
-    def pretty_score(self):
+    def pretty_score(self) -> str:
         return f'{int(self.vote_average * 10)}%'
 
 
@@ -209,7 +209,7 @@ class Movie(Production):
         self.video: bool = kwargs.get('video')
         # self.belongs_to_collection: ??? = kwargs.get('belongs_to_collection')
 
-    def pretty_runtime(self):
+    def pretty_runtime(self) -> str:
         if not self.runtime:
             return '-'
         hours = self.runtime // 60
@@ -236,7 +236,7 @@ class Tv(Production):
         # self.seasons: ??? = kwargs.get('seasons')
         self.type: str = kwargs.get('type')
 
-    def pretty_runtime(self):
+    def pretty_runtime(self) -> str:
         if not self.episode_run_time:
             return '-'
         runtime = self.episode_run_time[0]  # For some reason there's never more than 1 value
@@ -257,8 +257,9 @@ class TmdbClient:
         self.movie_genres: dict[int, str] = {}
         self.tv_genres: dict[int, str] = {}
 
-    async def _get(self, endpoint: str, **kwargs):
+    async def _get(self, endpoint: str, **kwargs) -> dict | list:
         """Creates a request to a given endpoint. Accepts query parameters as keyword arguments."""
+        # As of December 16, 2019, TMDB has disabled the API rate limiting.
         url = f'{self.base_api_url}{endpoint}?api_key={self.api_key}'
         for k, v in kwargs.items():
             url += f'&{k}={v}'
@@ -347,7 +348,7 @@ class TmdbClient:
         parsed['external_ids'] = ExternalIds(**parsed['external_ids'])
         return Person(**parsed)
 
-    def _prepare_production(self, parsed_production: dict):
+    def _prepare_production(self, parsed_production: dict) -> dict:
         parsed = deepcopy(parsed_production)
         parsed['genres'] = [genre['name'] for genre in parsed['genres']]
         parsed['spoken_languages'] = [self.language_config[lang['iso_639_1']] for lang in parsed['spoken_languages']]
@@ -381,7 +382,7 @@ class TmdbClient:
         parsed['recommendations'] = [Tv(**kwargs) for kwargs in parsed['recommendations']['results']]
         return Tv(**parsed)
 
-    async def get_popular_people(self):
+    async def get_popular_people(self) -> list[Person]:
         parsed = await self._get(f'/person/popular')
         parsed = parsed['results']
         for person in parsed:
@@ -389,12 +390,12 @@ class TmdbClient:
                                    for kwargs in person['known_for']]
         return [Person(**kwargs) for kwargs in parsed]
 
-    async def get_popular_movies(self):
+    async def get_popular_movies(self) -> list[Movie]:
         parsed = await self._get(f'/movie/popular')
         parsed = parsed['results']
         return [Movie(**kwargs) for kwargs in parsed]
 
-    async def get_popular_tv(self):
+    async def get_popular_tv(self) -> list[Tv]:
         parsed = await self._get(f'/tv/popular')
         parsed = parsed['results']
         return [Tv(**kwargs) for kwargs in parsed]

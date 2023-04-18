@@ -150,13 +150,13 @@ class ProductionView(SphynxView):
                                  for x in range(0, len(dep_credits), credits_per_page)]
         return pages
 
-    def _embed_description(self):
+    def _embed_description(self) -> str:
         if self.production.tagline:
             return f'**{self.production.tagline}**\n\n{self.production.overview}'
         else:
             return self.production.overview
 
-    def _embed_title(self):
+    def _embed_title(self) -> str:
         title = self.production.title.replace('*', r'\*')
         if self.production.release_date:
             return f'{title} ({self.production.release_date.year})'

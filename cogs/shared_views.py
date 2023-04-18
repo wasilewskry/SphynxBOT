@@ -10,7 +10,7 @@ class SphynxView(discord.ui.View):
         self.public = public
         self.owner = interaction.user
 
-    async def interaction_check(self, interaction: discord.Interaction):
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if self.public or interaction.user == self.owner:
             self.latest_interaction = interaction
             return True
