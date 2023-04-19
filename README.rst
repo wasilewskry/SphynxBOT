@@ -4,6 +4,9 @@
 
 .. raw :: html
 
+    <p align="center">
+        <img src="https://github.com/wasilewskry/SphynxBOT/blob/master/gallery/logo.png">
+    </p>
     <h1 align="center">SphynxBOT</h1>
 
     <p align="center">
