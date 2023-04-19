@@ -1,6 +1,6 @@
 .. raw :: html
 
-    <p style="margin: auto">
+    <p align="center">
         <img width="500px" src="https://github.com/wasilewskry/SphynxBOT/blob/master/gallery/logo.png">
     </p>
     <h1 align="center">SphynxBOT</h1>
