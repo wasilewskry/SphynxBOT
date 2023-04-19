@@ -1,7 +1,3 @@
-.. image:: gallery/logo.png
-   :width: 500px
-   :align: center
-
 .. raw :: html
 
     <p align="center">
