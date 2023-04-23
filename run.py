@@ -15,7 +15,8 @@ class Sphynx(commands.Bot):
             'cogs.owner',
             'cogs.unit',
             'cogs.reminder',
-            'cogs.cinema'
+            'cogs.cinema',
+            'cogs.dice'
         ]
 
     def _build_db_url(self):
@@ -29,12 +30,14 @@ class Sphynx(commands.Bot):
         return url
 
     async def setup_hook(self):
+        # db
         models = ['cogs.shared_models']
         models += [path.replace('.py', '').replace('\\', '/').replace('/', '.') for path in glob('cogs/*/models.py')]
         await Tortoise.init(
             db_url=self._build_db_url(),
             modules={'models': models})
         await Tortoise.generate_schemas()
+        # cogs
         for ext in self.initial_extensions:
             await self.load_extension(ext)
 
