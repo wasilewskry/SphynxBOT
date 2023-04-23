@@ -1,8 +1,10 @@
-.. image:: gallery/logo.png
-   :width: 500px
-   :align: center
+.. For some reason GitHub doesn't align images properly when using reStructuredText syntax.
 
 .. raw :: html
+
+    <p align="center">
+        <img width="500px" src="gallery/logo.png">
+    </p>
 
     <h1 align="center">SphynxBOT</h1>
 
